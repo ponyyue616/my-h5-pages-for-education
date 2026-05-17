@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <title>直播控场 · 流量波动应对(弧形事件版)</title>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js">
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body {
+      background: #0b1120;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: #e2e8f0;
+    }
+    .card-dark {
+      background: rgba(30,41,59,0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(148,163,184,0.15);
+      border-radius: 1.5rem;
+    }
+    .btn-action {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      border: none;
+      color: white;
+      font-weight: 600;
+      padding: 0.55rem 1rem;
+      border-radius: 2rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      box-shadow: 0 4px 12px rgba(59,130,246,0.35);
+      font-size: 0.85rem;
+    }
+    .btn-action:active { transform: scale(0.95); }
+    .btn-action:disabled { opacity: 0.4; transform: none; box-shadow: none; }
+    .btn-passive {
+      background: rgba(148,163,184,0.2);
+      color: #cbd5e1;
+    }
+    .btn-passive:hover { background: rgba(148,163,184,0.35); }
+    .status-badge {
+      background: rgba(255,255,255,0.1);
+      border-radius: 2rem;
+      padding: 0.25rem 1rem;
+      font-size: 0.8rem;
+    }
+    .peak { color: #fbbf24; }
+    .valley { color: #f472b6; }
+    .normal-flow { color: #34d399; }
+    .log-area {
+      background: rgba(0,0,0,0.35);
+      border-radius: 1rem;
+      padding: 0.8rem;
+      height: 140px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      scroll-behavior: smooth;
+    }
+    canvas { width: 100% !important; }
+    .phase-hint {
+      background: rgba(251,191,36,0.15);
+      border-left: 3px solid #fbbf24;
+      border-radius: 0 0.8rem 0.8rem 0;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body class="p-3 md:p-5 max-w-6xl mx-auto">
+
+  <div class="flex flex-col gap-4">
+    <!-- 头部 -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-2">
+        <i class="fa-solid fa-chart-simple text-indigo-400"></i> 直播控场 · 弧形流量事件
+      </h1>
+      <div class="flex gap-2 flex-wrap">
+        <div class="card-dark px-4 py-2 flex items-center gap-2 text-sm">
+          <span>⏱️ 进度</span>
+          <span class="font-mono" id="timerDisplay">00:00</span>
+          <span class="text-gray-400">/ 10:00</span>
+        </div>
+        <div class="card-dark px-3 py-2 flex items-center gap-2 text-sm">
+          <span>⚡速度</span>
+          <button class="px-2 py-1 rounded-full text-xs font-medium transition speed-btn bg-indigo-500 text-white" data-speed="1">1x</button>
+          <button class="px-2 py-1 rounded-full text-xs font-medium transition speed-btn bg-gray-700 text-gray-300" data-speed="2">2x</button>
+          <button class="px-2 py-1 rounded-full text-xs font-medium transition speed-btn bg-gray-700 text-gray-300" data-speed="4">4x</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主布局 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 card-dark p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-gray-200 flex items-center gap-2">
+            <i class="fa-solid fa-wave-square text-sky-400"></i> 在线观众趋势
+          </h3>
+          <div class="flex gap-3 text-xs">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span> 高峰 &gt;800</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-pink-400 inline-block"></span> 低谷 &lt;300</span>
+          </div>
+        </div>
+        <div style="position: relative; height: 260px;">
+          <canvas id="trafficChart"></canvas>
+        </div>
+        <div class="flex justify-between items-center mt-3">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl font-bold" id="currentOnline">0</span>
+            <span class="text-sm text-gray-400">在线</span>
+            <span class="status-badge" id="flowStatus">--</span>
+          </div>
+          <div class="text-xs text-gray-500">
+            峰值 <span class="text-yellow-400 font-mono" id="peakValue">0</span> · 谷值 <span class="text-pink-400 font-mono" id="valleyValue">0</span>
+          </div>
+        </div>
+        <!-- 阶段提示 -->
+        <div id="phaseHint" class="mt-2 phase-hint text-yellow-200"></div>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <div class="card-dark p-4 grid grid-cols-2 gap-3">
+          <div><p class="text-xs text-gray-400">累计观众</p><p class="text-xl font-bold" id="totalVisitors">0</p></div>
+          <div><p class="text-xs text-gray-400">成交订单</p><p class="text-xl font-bold" id="totalOrders">0</p></div>
+          <div><p class="text-xs text-gray-400">GMV</p><p class="text-xl font-bold" id="totalGMV">¥0</p></div>
+          <div><p class="text-xs text-gray-400">转化率</p><p class="text-xl font-bold" id="conversionRate">0%</p></div>
+        </div>
+
+        <div class="card-dark p-4">
+          <h3 class="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-gamepad text-indigo-400"></i> 运营决策
+          </h3>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="btn-action" data-action="pushCore">🚀 推核心品</button>
+            <button class="btn-action" data-action="coupon">🎟️ 发优惠券</button>
+            <button class="btn-action" data-action="luckyDraw">🎁 福袋抽奖</button>
+            <button class="btn-action" data-action="slowDown">⏸️ 放慢节奏</button>
+            <button class="btn-action" data-action="redPacket">🧧 发红包</button>
+            <button class="btn-action" data-action="game">🎮 互动游戏</button>
+            <button class="btn-action" data-action="guest">🎤 连麦嘉宾</button>
+            <button class="btn-action" data-action="showReview">⭐ 展示好评</button>
+            <button class="btn-action btn-passive col-span-2" data-action="ignore">➡️ 忽略波动</button>
+          </div>
+          <p class="text-xs text-gray-500 mt-2 text-center">⏳ 冷却：<span id="cooldownTimer" class="text-green-400">就绪</span></p>
+        </div>
+
+        <div class="card-dark p-3">
+          <h3 class="text-xs font-semibold text-gray-400 mb-2">📋 决策日志</h3>
+          <div class="log-area" id="logPanel">
+            <p class="text-gray-500 text-xs">等待运营决策…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部 -->
+    <div class="card-dark p-4 flex items-center justify-between flex-wrap gap-3">
+      <button id="endSimBtn" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-5 py-2 rounded-full transition flex items-center gap-2">
+        <i class="fa-solid fa-stop"></i> 结束模拟 & 查看评分
+      </button>
+    </div>
+  </div>
+
+  <!-- 评分弹窗 -->
+  <div id="scoreModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
+    <div class="bg-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-slate-600 shadow-2xl">
+      <h2 class="text-2xl font-bold text-white mb-3 flex items-center gap-2"><i class="fa-solid fa-trophy text-yellow-400"></i> 模拟评估</h2>
+      <div class="text-center mb-4">
+        <p class="text-5xl font-black text-indigo-400" id="finalScore">0</p>
+        <p class="text-gray-300 text-sm">总分</p>
+      </div>
+      <div id="scoreDetails" class="text-sm text-gray-300 space-y-1 mb-5"></div>
+      <div class="flex gap-3">
+        <button id="restartBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-full transition">
+          <i class="fa-solid fa-rotate-right"></i> 再来一局
+        </button>
+        <button id="closeModalBtn" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 rounded-full transition">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const SIM_DURATION_SEC = 600;
+      const TICK_INTERVAL_MS = 250;
+      let simSpeed = 1;
+      let simElapsed = 0;
+      let simTimer = null;
+      let cooldownRemaining = 0;
+
+      // 流量模型：基础 + 多个弧形事件
+      const BASE_VIEWERS = 500;
+      let trafficData = [];
+      let peakRecord = 0;
+      let valleyRecord = Infinity;
+
+      // 事件定义：每个事件有 startTime, 上升时长, 平台时长, 下降时长, 峰值强度(0.5~1.0)
+      let events = [];
+      function generateEvents() {
+        events = [];
+        let t = 30;
+        while (t < SIM_DURATION_SEC - 90) {
+          const type = Math.random() < 0.6 ? 'peak' : 'valley';
+          const rise = 20 + Math.floor(Math.random() * 25);   // 上升20-45秒
+          const plateau = 8 + Math.floor(Math.random() * 12); // 平台8-20秒
+          const fall = 20 + Math.floor(Math.random() * 25);   // 下降20-45秒
+          const intensity = 0.6 + Math.random() * 0.4;
+          events.push({ startTime: t, type, rise, plateau, fall, intensity });
+          t += rise + plateau + fall + 30 + Math.floor(Math.random() * 40); // 事件间隔
+        }
+      }
+
+      // 根据当前时间计算事件影响
+      function getEventImpact(timeSec) {
+        let impact = 0;
+        let activeEvent = null;
+        for (let ev of events) {
+          const t = timeSec - ev.startTime;
+          if (t < 0 || t > (ev.rise + ev.plateau + ev.fall)) continue;
+          let factor = 0;
+          if (t <= ev.rise) {
+            factor = t / ev.rise; // 线性上升
+          } else if (t <= ev.rise + ev.plateau) {
+            factor = 1; // 平台
+          } else {
+            const fallTime = t - ev.rise - ev.plateau;
+            factor = 1 - fallTime / ev.fall; // 线性下降
+          }
+          const maxImpact = ev.type === 'peak' ? 500 * ev.intensity : -350 * ev.intensity;
+          impact += factor * maxImpact;
+          if (!activeEvent) activeEvent = { ...ev, currentFactor: factor };
+        }
+        return { impact, activeEvent };
+      }
+
+      function computeViewers(timeSec) {
+        let base = BASE_VIEWERS + Math.sin(timeSec * 2 * Math.PI / 300) * 40; // 非常平缓的正弦
+        const { impact } = getEventImpact(timeSec);
+        base += impact;
+        base += (Math.random() - 0.5) * 10;
+        return Math.max(60, Math.min(2200, Math.floor(base)));
+      }
+
+      // 运营数据
+      let totalVisitors = 0;
+      let totalOrders = 0;
+      let totalGMV = 0;
+      let coreProductPrice = 199;
+      let conversionBase = 0.025;
+      let activeMultiplier = 1.0;
+      let decisionScore = 0;
+      let correctDecisions = 0;
+      let wrongDecisions = 0;
+
+      let trafficChart = null;
+      const chartCtx = document.getElementById('trafficChart').getContext('2d');
+
+      // DOM
+      const currentOnlineEl = document.getElementById('currentOnline');
+      const flowStatusEl = document.getElementById('flowStatus');
+      const phaseHint = document.getElementById('phaseHint');
+      const peakValueEl = document.getElementById('peakValue');
+      const valleyValueEl = document.getElementById('valleyValue');
+      const totalVisitorsEl = document.getElementById('totalVisitors');
+      const totalOrdersEl = document.getElementById('totalOrders');
+      const totalGMVEl = document.getElementById('totalGMV');
+      const conversionRateEl = document.getElementById('conversionRate');
+      const timerDisplay = document.getElementById('timerDisplay');
+      const logPanel = document.getElementById('logPanel');
+      const cooldownTimerEl = document.getElementById('cooldownTimer');
+      const scoreModal = document.getElementById('scoreModal');
+      const finalScoreEl = document.getElementById('finalScore');
+      const scoreDetails = document.getElementById('scoreDetails');
+      const endSimBtn = document.getElementById('endSimBtn');
+      const restartBtn = document.getElementById('restartBtn');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const speedBtns = document.querySelectorAll('.speed-btn');
+
+      function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      }
+
+      function addLog(msg, type='info') {
+        const p = document.createElement('p');
+        const colors = { info:'#cbd5e1', success:'#34d399', warning:'#fbbf24', error:'#f472b6' };
+        p.style.color = colors[type] || '#cbd5e1';
+        p.textContent = msg;
+        logPanel.appendChild(p);
+        logPanel.scrollTop = logPanel.scrollHeight;
+        if (logPanel.children.length > 25) logPanel.removeChild(logPanel.firstChild);
+      }
+
+      function getFlowState(viewers) {
+        if (viewers >= 800) return 'peak';
+        if (viewers <= 300) return 'valley';
+        return 'normal';
+      }
+
+      function getCurrentEventPhase() {
+        const { activeEvent } = getEventImpact(simElapsed);
+        if (!activeEvent) return { phase: 'none', event: null };
+        const t = simElapsed - activeEvent.startTime;
+        let phase = '';
+        if (t <= activeEvent.rise) phase = 'rising';
+        else if (t <= activeEvent.rise + activeEvent.plateau) phase = 'plateau';
+        else phase = 'falling';
+        return { phase, event: activeEvent, type: activeEvent.type };
+      }
+
+      function updateUI() {
+        const viewers = trafficData.length > 0 ? trafficData[trafficData.length-1].viewers : BASE_VIEWERS;
+        currentOnlineEl.textContent = viewers;
+        const state = getFlowState(viewers);
+        if (state === 'peak') {
+          flowStatusEl.textContent = '🔥 高峰';
+          flowStatusEl.className = 'status-badge peak';
+        } else if (state === 'valley') {
+          flowStatusEl.textContent = '❄️ 低谷';
+          flowStatusEl.className = 'status-badge valley';
+        } else {
+          flowStatusEl.textContent = '🟢 平稳';
+          flowStatusEl.className = 'status-badge normal-flow';
+        }
+
+        // 阶段提示
+        const { phase, event, type } = getCurrentEventPhase();
+        let hintText = '';
+        if (phase === 'rising') {
+          hintText = type === 'peak' ? '📈 流量正在上升，建议准备推核心品或发券。' : '📉 流量正在下滑，建议放慢节奏或抽奖拉新。';
+        } else if (phase === 'plateau') {
+          hintText = type === 'peak' ? '🔥 流量处于高峰平台，抓紧转化！推品、发券效果最佳。' : '❄️ 低谷持续，可尝试互动游戏或连麦嘉宾。';
+        } else if (phase === 'falling') {
+          hintText = type === 'peak' ? '📉 流量开始回落，可适当放缓或发红包维持热度。' : '📈 流量逐渐恢复，保持稳定运营。';
+        } else {
+          hintText = '🟢 流量平稳，按照正常节奏进行。';
+        }
+        phaseHint.textContent = hintText;
+
+        peakValueEl.textContent = peakRecord || '--';
+        valleyValueEl.textContent = valleyRecord === Infinity ? '--' : valleyRecord;
+
+        totalVisitorsEl.textContent = Math.floor(totalVisitors).toLocaleString();
+        totalOrdersEl.textContent = totalOrders;
+        totalGMVEl.textContent = '¥' + Math.floor(totalGMV).toLocaleString();
+        const conv = totalVisitors > 0 ? ((totalOrders / totalVisitors) * 100).toFixed(2) : '0.00';
+        conversionRateEl.textContent = conv + '%';
+
+        if (cooldownRemaining > 0) {
+          cooldownTimerEl.textContent = `${cooldownRemaining.toFixed(0)}秒`;
+          cooldownTimerEl.className = 'text-yellow-400';
+        } else {
+          cooldownTimerEl.textContent = '就绪';
+          cooldownTimerEl.className = 'text-green-400';
+        }
+      }
+
+      function updateChart() {
+        const labels = trafficData.map(d => formatTime(d.time));
+        const data = trafficData.map(d => d.viewers);
+        if (!trafficChart) {
+          trafficChart = new Chart(chartCtx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: '在线观众',
+                data,
+                borderColor: '#38bdf8',
+                backgroundColor: 'rgba(56,189,248,0.05)',
+                borderWidth: 2.5,
+                pointRadius: 0,
+                tension: 0.2,
+                fill: true,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: { duration: 150 },
+              plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `在线: ${ctx.raw} 人` } } },
+              scales: {
+                y: { min: 0, max: 2500, ticks: { callback: v => v+'人', color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { display: false } }
+              }
+            }
+          });
+        } else {
+          trafficChart.data.labels = labels;
+          trafficChart.data.datasets[0].data = data;
+          trafficChart.update('none');
+        }
+      }
+
+      function simulateOneSecond() {
+        if (simElapsed >= SIM_DURATION_SEC) {
+          endSimulation();
+          return;
+        }
+        const viewers = computeViewers(simElapsed);
+        trafficData.push({ time: simElapsed, viewers });
+        if (trafficData.length > 700) trafficData.shift();
+        if (viewers > peakRecord) peakRecord = viewers;
+        if (viewers < valleyRecord) valleyRecord = viewers;
+
+        totalVisitors += viewers * 0.12;
+        const effectiveConv = conversionBase * activeMultiplier;
+        totalOrders += Math.floor(viewers * effectiveConv * 0.025 + Math.random() * 0.5);
+        totalGMV += totalOrders > 0 ? (totalOrders * coreProductPrice * (0.9 + Math.random()*0.2)) : 0;
+
+        if (cooldownRemaining > 0) cooldownRemaining--;
+        if (activeMultiplier > 1.0) activeMultiplier = Math.max(1.0, activeMultiplier - 0.003);
+        else if (activeMultiplier < 1.0) activeMultiplier = Math.min(1.0, activeMultiplier + 0.003);
+
+        simElapsed++;
+        updateUI();
+        if (simElapsed % 10 === 0) updateChart();
+      }
+
+      function executeAction(actionType) {
+        if (cooldownRemaining > 0) { addLog('⏳ 操作冷却中...', 'warning'); return false; }
+        if (simElapsed >= SIM_DURATION_SEC) { addLog('⏹️ 模拟已结束', 'error'); return false; }
+        const viewers = trafficData[trafficData.length-1]?.viewers || BASE_VIEWERS;
+        const state = getFlowState(viewers);
+        const { phase, type } = getCurrentEventPhase();
+        let isCorrect = false;
+        let scoreChange = 0;
+        let logMsg = '';
+
+        // 决策逻辑：根据阶段+流量状态判断
+        switch(actionType) {
+          case 'pushCore':
+            if (state === 'peak' || phase === 'rising' || phase === 'plateau') { isCorrect = true; scoreChange = 15; logMsg = '✅ 流量上升/高峰推核心品，转化率提升！'; activeMultiplier = 2.0; }
+            else if (state === 'valley') { isCorrect = false; scoreChange = -12; logMsg = '❌ 低谷强推品，效果差。'; activeMultiplier = 0.7; }
+            else { isCorrect = true; scoreChange = 5; logMsg = 'ℹ️ 平稳推品，效果一般。'; activeMultiplier = 1.4; }
+            break;
+          case 'coupon':
+            if (state === 'peak' || phase === 'rising') { isCorrect = true; scoreChange = 12; logMsg = '✅ 发券刺激下单！'; activeMultiplier = 1.8; }
+            else if (state === 'valley') { isCorrect = false; scoreChange = -6; logMsg = '⚠️ 低谷发券效果打折。'; activeMultiplier = 1.2; }
+            else { isCorrect = true; scoreChange = 6; logMsg = 'ℹ️ 发券小幅提升转化。'; activeMultiplier = 1.5; }
+            break;
+          case 'luckyDraw':
+            if (state === 'valley' || phase === 'falling') { isCorrect = true; scoreChange = 10; logMsg = '✅ 抽奖拉新，流量回升。'; }
+            else if (state === 'peak') { isCorrect = false; scoreChange = -4; logMsg = '⚠️ 高峰抽奖分散购买。'; }
+            else { isCorrect = true; scoreChange = 3; logMsg = 'ℹ️ 抽奖活跃气氛。'; }
+            activeMultiplier = 0.8;
+            break;
+          case 'slowDown':
+            if (state === 'valley' || phase === 'falling') { isCorrect = true; scoreChange = 10; logMsg = '✅ 放缓节奏，稳固留存。'; }
+            else if (state === 'peak') { isCorrect = false; scoreChange = -12; logMsg = '❌ 高峰时放缓，错失良机！'; }
+            else { isCorrect = true; scoreChange = 4; logMsg = 'ℹ️ 适当放慢节奏。'; }
+            activeMultiplier = 0.9;
+            break;
+          case 'redPacket':
+            if (state === 'peak' || phase === 'plateau') { isCorrect = true; scoreChange = 12; logMsg = '🧧 高峰发红包，互动飙升！'; activeMultiplier = 1.7; }
+            else { isCorrect = true; scoreChange = 5; logMsg = '🧧 发红包提升气氛。'; activeMultiplier = 1.4; }
+            break;
+          case 'game':
+            if (state === 'valley') { isCorrect = true; scoreChange = 10; logMsg = '🎮 互动游戏留住用户。'; }
+            else { isCorrect = false; scoreChange = -3; logMsg = '⚠️ 游戏可能分散注意力。'; }
+            activeMultiplier = 0.95;
+            break;
+          case 'guest':
+            if (state === 'peak') { isCorrect = true; scoreChange = 8; logMsg = '🎤 连麦嘉宾引爆流量！'; }
+            else { isCorrect = true; scoreChange = 3; logMsg = '🎤 连麦增加看点。'; }
+            activeMultiplier = 1.2;
+            break;
+          case 'showReview':
+            isCorrect = true; scoreChange = 7; logMsg = '⭐ 展示好评提升信任，转化微增。'; activeMultiplier = 1.3;
+            break;
+          case 'ignore':
+            if (state === 'peak') { isCorrect = false; scoreChange = -8; logMsg = '⚠️ 忽视高峰，错失转化。'; }
+            else if (state === 'valley') { isCorrect = true; scoreChange = 3; logMsg = 'ℹ️ 低谷保持常态。'; }
+            else { isCorrect = true; scoreChange = 2; logMsg = 'ℹ️ 正常讲解。'; }
+            break;
+        }
+        decisionScore = Math.max(0, decisionScore + scoreChange);
+        if (isCorrect) correctDecisions++; else wrongDecisions++;
+        addLog(logMsg, isCorrect ? 'success' : 'error');
+        cooldownRemaining = 10;
+        updateUI();
+        return true;
+      }
+
+      function endSimulation() {
+        if (simTimer) { clearInterval(simTimer); simTimer = null; }
+        let totalScore = decisionScore + (peakRecord>800&&correctDecisions>3?15:0) + (valleyRecord<300&&correctDecisions>2?10:0);
+        totalScore = Math.min(100, totalScore);
+        finalScoreEl.textContent = totalScore;
+        scoreDetails.innerHTML = `
+          <p>🎯 正确决策：<span class="text-green-400">${correctDecisions}</span> 次</p>
+          <p>⚠️ 错误决策：<span class="text-red-400">${wrongDecisions}</span> 次</p>
+          <p>📈 峰值：<span class="text-yellow-400">${peakRecord}</span> 人</p>
+          <p>📉 谷值：<span class="text-pink-400">${valleyRecord===Infinity?'--':valleyRecord}</span> 人</p>
+          <p>💰 GMV：<span class="text-green-400">¥${Math.floor(totalGMV).toLocaleString()}</span></p>
+          <p>📊 订单：<span class="text-blue-400">${totalOrders}</span></p>
+        `;
+        scoreModal.classList.remove('hidden');
+        updateUI();
+      }
+
+      function resetSimulation() {
+        if (simTimer) clearInterval(simTimer);
+        simElapsed = 0;
+        trafficData = [];
+        peakRecord = 0; valleyRecord = Infinity;
+        totalVisitors = 0; totalOrders = 0; totalGMV = 0;
+        activeMultiplier = 1.0; decisionScore = 0;
+        correctDecisions = 0; wrongDecisions = 0;
+        cooldownRemaining = 0;
+        logPanel.innerHTML = '<p class="text-gray-500 text-xs">等待运营决策…</p>';
+        generateEvents();
+        for (let t=0; t<10; t++) trafficData.push({ time: t, viewers: computeViewers(t) });
+        simElapsed = 10;
+        updateChart();
+        updateUI();
+        scoreModal.classList.add('hidden');
+        startSimulation();
+      }
+
+      function startSimulation() {
+        if (simTimer) clearInterval(simTimer);
+        const interval = TICK_INTERVAL_MS / simSpeed;
+        simTimer = setInterval(() => {
+          simulateOneSecond();
+          if (simElapsed >= SIM_DURATION_SEC) endSimulation();
+        }, interval);
+      }
+
+      // 绑定所有按钮
+      document.querySelectorAll('.btn-action').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const action = btn.dataset.action;
+          if (action) executeAction(action);
+        });
+      });
+
+      endSimBtn.addEventListener('click', ()=>{ if(simElapsed<SIM_DURATION_SEC) endSimulation(); });
+      restartBtn.addEventListener('click', resetSimulation);
+      closeModalBtn.addEventListener('click', ()=>scoreModal.classList.add('hidden'));
+
+      speedBtns.forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          speedBtns.forEach(b=>{b.classList.remove('bg-indigo-500','text-white'); b.classList.add('bg-gray-700','text-gray-300');});
+          btn.classList.add('bg-indigo-500','text-white');
+          simSpeed = parseInt(btn.dataset.speed);
+          if(simTimer){ clearInterval(simTimer); startSimulation(); }
+        });
+      });
+
+      // 初始化
+      function init() {
+        generateEvents();
+        for (let t=0; t<10; t++) trafficData.push({ time: t, viewers: computeViewers(t) });
+        simElapsed = 10;
+        updateChart();
+        updateUI();
+        startSimulation();
+      }
+      init();
+    })();
+  </script>
+</body>
+</html>

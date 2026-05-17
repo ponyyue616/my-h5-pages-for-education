@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+  <title>直播互动方案策划 · 按主题模拟</title>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body {
+      background: #f1f5f9;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .card {
+      background: white;
+      border-radius: 1.2rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+      transition: 0.15s;
+    }
+    .timeline-block {
+      border-left: 3px solid #6366f1;
+      background: #f8faff;
+      border-radius: 0 1rem 1rem 0;
+      transition: 0.2s;
+      cursor: pointer;
+    }
+    .timeline-block:hover { background: #eef2ff; }
+    .timeline-block.active { background: #e0e7ff; border-left-color: #4f46e5; }
+    .topic-tag {
+      background: #eef2ff;
+      color: #4338ca;
+      border-radius: 20px;
+      padding: 0.25rem 0.8rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: 0.15s;
+    }
+    .topic-tag:hover { border-color: #6366f1; background: #e0e7ff; }
+    .topic-tag.selected { background: #4f46e5; color: white; border-color: #4f46e5; }
+    .interaction-card {
+      border: 2px solid transparent;
+      border-radius: 1rem;
+      padding: 0.5rem 0.8rem;
+      background: #f9fafb;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .interaction-card:hover { border-color: #818cf8; background: #eef2ff; }
+    .interaction-card.used { opacity: 0.5; pointer-events: none; background: #f1f5f9; }
+    .badge-risk { background: #fef2f2; color: #b91c1c; }
+    .badge-safe { background: #f0fdf4; color: #15803d; }
+    .evaluation-text {
+      background: #f8fafc;
+      border-radius: 0.8rem;
+      padding: 1rem;
+      border-left: 4px solid #6366f1;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-6 max-w-7xl mx-auto">
+
+  <!-- 头部：主题选择 + 操作按钮 -->
+  <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+        <i class="fa-solid fa-clapperboard text-indigo-500"></i> 直播互动方案策划
+      </h1>
+      <p class="text-sm text-gray-500 mt-1">选择直播主题，在时间轴中安排话题与互动，获得方案评价</p>
+    </div>
+    <div class="flex gap-2 items-center flex-wrap">
+      <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border">
+        <span class="text-sm text-gray-600">🎯 主题</span>
+        <select id="themeSelect" class="text-sm font-medium bg-transparent outline-none">
+          <option value="farm">农产品</option>
+          <option value="cosmetics" selected>化妆品</option>
+          <option value="clothing">女装</option>
+          <option value="electronics">电子产品</option>
+          <option value="homeappliance">家用电器</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border">
+        <span class="text-sm text-gray-600">⏱️ 时长</span>
+        <select id="durationSelect" class="text-sm font-medium bg-transparent outline-none">
+          <option value="15">15分钟</option>
+          <option value="20" selected>20分钟</option>
+          <option value="30">30分钟</option>
+        </select>
+      </div>
+      <button id="simulateBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full font-semibold text-sm flex items-center gap-1 shadow transition">
+        <i class="fa-solid fa-play"></i> 生成方案评价
+      </button>
+      <button id="resetBtn" class="bg-white border border-gray-300 px-4 py-2 rounded-full text-sm font-medium hover:bg-gray-50 transition flex items-center gap-1">
+        <i class="fa-solid fa-arrow-rotate-left"></i> 重置
+      </button>
+    </div>
+  </div>
+
+  <!-- 主布局 -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+    <!-- 左侧：直播环节 -->
+    <div class="lg:col-span-3">
+      <div class="card p-4">
+        <h3 class="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-timeline text-indigo-400"></i> 直播环节
+        </h3>
+        <div id="phaseContainer" class="space-y-3 text-sm"></div>
+        <p class="text-xs text-gray-400 mt-3">点击环节选中，右侧添加内容</p>
+      </div>
+    </div>
+    <!-- 中间：方案列表 -->
+    <div class="lg:col-span-5">
+      <div class="card p-4">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-semibold text-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-400"></i> 当前互动方案
+          </h3>
+          <span class="text-xs text-gray-400" id="planCount">0 项</span>
+        </div>
+        <div id="planList" class="space-y-2 max-h-[420px] overflow-y-auto pr-1"></div>
+      </div>
+    </div>
+    <!-- 右侧：话题库与互动库 -->
+    <div class="lg:col-span-4">
+      <div class="card p-4 mb-4">
+        <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-message text-indigo-400"></i> 话题储备库
+        </h3>
+        <div class="flex gap-1 mb-3 flex-wrap">
+          <span class="topic-tag selected" data-filter="all">全部</span>
+          <span class="topic-tag" data-filter="日常">日常</span>
+          <span class="topic-tag" data-filter="热点">热点/政策</span>
+          <span class="topic-tag" data-filter="产品">产品种草</span>
+        </div>
+        <div id="topicLibrary" class="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto"></div>
+      </div>
+      <div class="card p-4">
+        <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-gamepad text-indigo-400"></i> 互动玩法库
+        </h3>
+        <div id="interactionLibrary" class="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案评价面板 (默认隐藏) -->
+  <div id="evaluationPanel" class="card p-5 mb-4 hidden">
+    <h2 class="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+      <i class="fa-solid fa-clipboard-check text-indigo-500"></i> 方案评价
+    </h2>
+    <div id="evaluationContent" class="evaluation-text text-sm text-gray-700 space-y-2"></div>
+  </div>
+
+  <script>
+    (function() {
+      // ---------- 环节定义 ----------
+      const phases = [
+        { id: 'opening', name: '开场引流', timeRatio: 0.15, icon: 'fa-door-open', color: '#f59e0b' },
+        { id: 'trust', name: '信任建设', timeRatio: 0.20, icon: 'fa-hand-holding-heart', color: '#10b981' },
+        { id: 'product', name: '产品介绍', timeRatio: 0.25, icon: 'fa-box', color: '#3b82f6' },
+        { id: 'interact', name: '互动活动', timeRatio: 0.20, icon: 'fa-comments', color: '#8b5cf6' },
+        { id: 'promo', name: '促销秒杀', timeRatio: 0.10, icon: 'fa-bolt', color: '#ef4444' },
+        { id: 'ending', name: '结束预告', timeRatio: 0.10, icon: 'fa-flag-checkered', color: '#6b7280' }
+      ];
+
+      // ---------- 各主题的内容库 ----------
+      const themeData = {
+        farm: {
+          topics: [
+            { id:'f1', name:'产地直发新鲜度', category:'产品', desc:'强调源头', attraction:2, conversion:6, risk:0 },
+            { id:'f2', name:'助农故事分享', category:'日常', desc:'情感连接', attraction:5, conversion:2, risk:0 },
+            { id:'f3', name:'食品安全政策', category:'热点', desc:'需谨慎', attraction:3, conversion:1, risk:4, policyNote:'准确引用标准' },
+            { id:'f4', name:'时令水果吃法', category:'日常', desc:'实用内容', attraction:3, conversion:2, risk:0 },
+            { id:'f5', name:'对比超市价格', category:'产品', desc:'突出划算', attraction:2, conversion:5, risk:0 },
+            { id:'f6', name:'农村生活趣事', category:'日常', desc:'增强人设', attraction:4, conversion:1, risk:0 },
+            { id:'f7', name:'有机认证科普', category:'产品', desc:'权威背书', attraction:2, conversion:4, risk:1 },
+            { id:'f8', name:'节气饮食文化', category:'热点', desc:'结合传统', attraction:4, conversion:2, risk:0 },
+          ],
+          interactions: [
+            { id:'i1', name:'试吃盲盒', icon:'fa-box-open', attraction:6, conversion:3, risk:0, limit:2 },
+            { id:'i2', name:'优惠券发放', icon:'fa-ticket', attraction:4, conversion:5, risk:0, limit:2 },
+            { id:'i3', name:'连麦农户', icon:'fa-microphone', attraction:5, conversion:2, risk:1, limit:1 },
+            { id:'i4', name:'限时秒杀', icon:'fa-bolt', attraction:3, conversion:8, risk:0, limit:1 },
+            { id:'i5', name:'称重挑战', icon:'fa-weight-scale', attraction:4, conversion:1, risk:0, limit:2 },
+            { id:'i6', name:'红包雨', icon:'fa-cloud-rain', attraction:7, conversion:1, risk:0, limit:1 },
+          ]
+        },
+        cosmetics: {
+          topics: [
+            { id:'c1', name:'成分功效科普', category:'产品', desc:'专业种草', attraction:3, conversion:6, risk:1 },
+            { id:'c2', name:'妆前妆后对比', category:'产品', desc:'视觉冲击', attraction:5, conversion:7, risk:0 },
+            { id:'c3', name:'护肤误区纠正', category:'日常', desc:'实用避坑', attraction:4, conversion:3, risk:0 },
+            { id:'c4', name:'明星同款解读', category:'热点', desc:'蹭流量', attraction:6, conversion:4, risk:2, policyNote:'避免虚假代言' },
+            { id:'c5', name:'季节护肤建议', category:'日常', desc:'应季话题', attraction:3, conversion:4, risk:0 },
+            { id:'c6', name:'用户好评展示', category:'产品', desc:'信任背书', attraction:2, conversion:5, risk:0 },
+            { id:'c7', name:'美妆工具教程', category:'日常', desc:'干货输出', attraction:4, conversion:2, risk:0 },
+            { id:'c8', name:'行业新规讨论', category:'热点', desc:'谨慎', attraction:3, conversion:0, risk:5, policyNote:'不得传播未证实信息' },
+          ],
+          interactions: [
+            { id:'c1', name:'现场试用', icon:'fa-face-smile', attraction:6, conversion:5, risk:0, limit:2 },
+            { id:'c2', name:'福袋抽奖', icon:'fa-gift', attraction:7, conversion:-1, risk:0, limit:2 },
+            { id:'c3', name:'投票选品', icon:'fa-square-poll-horizontal', attraction:3, conversion:2, risk:0, limit:5 },
+            { id:'c4', name:'限时秒杀', icon:'fa-bolt', attraction:3, conversion:8, risk:0, limit:1 },
+            { id:'c5', name:'肤质答疑', icon:'fa-circle-question', attraction:4, conversion:3, risk:0, limit:3 },
+          ]
+        },
+        clothing: {
+          topics: [
+            { id:'cl1', name:'当季流行趋势', category:'热点', desc:'时尚风向', attraction:5, conversion:4, risk:0 },
+            { id:'cl2', name:'穿搭公式分享', category:'日常', desc:'实用教学', attraction:4, conversion:3, risk:0 },
+            { id:'cl3', name:'面料材质解析', category:'产品', desc:'体现品质', attraction:2, conversion:5, risk:0 },
+            { id:'cl4', name:'买家秀展示', category:'产品', desc:'真实反馈', attraction:3, conversion:6, risk:0 },
+            { id:'cl5', name:'换季整理技巧', category:'日常', desc:'生活话题', attraction:3, conversion:1, risk:0 },
+            { id:'cl6', name:'服装行业环保', category:'热点', desc:'社会责任', attraction:4, conversion:2, risk:1 },
+          ],
+          interactions: [
+            { id:'cl1', name:'穿搭挑战', icon:'fa-shirt', attraction:6, conversion:3, risk:0, limit:1 },
+            { id:'cl2', name:'优惠券发放', icon:'fa-ticket', attraction:4, conversion:5, risk:0, limit:2 },
+            { id:'cl3', name:'福袋抽奖', icon:'fa-gift', attraction:7, conversion:-1, risk:0, limit:2 },
+            { id:'cl4', name:'限时秒杀', icon:'fa-bolt', attraction:3, conversion:8, risk:0, limit:1 },
+            { id:'cl5', name:'连麦穿搭师', icon:'fa-microphone', attraction:5, conversion:2, risk:1, limit:1 },
+          ]
+        },
+        electronics: {
+          topics: [
+            { id:'e1', name:'性能参数解读', category:'产品', desc:'硬核科普', attraction:2, conversion:5, risk:1 },
+            { id:'e2', name:'新品发布会回顾', category:'热点', desc:'蹭流量', attraction:6, conversion:3, risk:2, policyNote:'信息准确' },
+            { id:'e3', name:'使用场景演示', category:'产品', desc:'直观感受', attraction:3, conversion:6, risk:0 },
+            { id:'e4', name:'性价比对比', category:'产品', desc:'促进决策', attraction:3, conversion:7, risk:0 },
+            { id:'e5', name:'客户问答专场', category:'日常', desc:'解决疑虑', attraction:3, conversion:4, risk:0 },
+            { id:'e6', name:'电子产品回收政策', category:'热点', desc:'环保话题', attraction:2, conversion:1, risk:0 },
+          ],
+          interactions: [
+            { id:'e1', name:'开箱测评', icon:'fa-box', attraction:5, conversion:4, risk:0, limit:1 },
+            { id:'e2', name:'优惠券发放', icon:'fa-ticket', attraction:4, conversion:5, risk:0, limit:2 },
+            { id:'e3', name:'以旧换新', icon:'fa-recycle', attraction:3, conversion:6, risk:1, limit:1 },
+            { id:'e4', name:'限时秒杀', icon:'fa-bolt', attraction:3, conversion:8, risk:0, limit:1 },
+            { id:'e5', name:'连麦数码达人', icon:'fa-microphone', attraction:5, conversion:2, risk:1, limit:1 },
+          ]
+        },
+        homeappliance: {
+          topics: [
+            { id:'h1', name:'节能省电数据', category:'产品', desc:'长期省钱', attraction:2, conversion:5, risk:0 },
+            { id:'h2', name:'家庭场景展示', category:'产品', desc:'代入感', attraction:4, conversion:6, risk:0 },
+            { id:'h3', name:'夏季制冷技巧', category:'日常', desc:'应季', attraction:3, conversion:2, risk:0 },
+            { id:'h4', name:'家电安全规范', category:'热点', desc:'政策相关', attraction:2, conversion:1, risk:3, policyNote:'强调国家标准' },
+            { id:'h5', name:'用户安装反馈', category:'产品', desc:'口碑', attraction:3, conversion:5, risk:0 },
+            { id:'h6', name:'智能家居趋势', category:'热点', desc:'科技话题', attraction:4, conversion:3, risk:0 },
+          ],
+          interactions: [
+            { id:'h1', name:'现场功能演示', icon:'fa-plug', attraction:5, conversion:5, risk:0, limit:2 },
+            { id:'h2', name:'优惠券发放', icon:'fa-ticket', attraction:4, conversion:5, risk:0, limit:2 },
+            { id:'h3', name:'延保服务介绍', icon:'fa-shield', attraction:2, conversion:6, risk:0, limit:2 },
+            { id:'h4', name:'限时秒杀', icon:'fa-bolt', attraction:3, conversion:8, risk:0, limit:1 },
+            { id:'h5', name:'福袋抽奖', icon:'fa-gift', attraction:7, conversion:-1, risk:0, limit:2 },
+          ]
+        }
+      };
+
+      // 当前主题下的数据
+      let currentTheme = 'cosmetics';
+      let currentTopics = [...themeData.cosmetics.topics];
+      let currentInteractions = [...themeData.cosmetics.interactions];
+
+      let currentPhaseId = 'opening';
+      let planItems = []; // { phaseId, type:'topic'|'interaction', itemId }
+      let durationMinutes = 20;
+
+      // DOM 元素
+      const phaseContainer = document.getElementById('phaseContainer');
+      const planList = document.getElementById('planList');
+      const planCount = document.getElementById('planCount');
+      const topicLibrary = document.getElementById('topicLibrary');
+      const interactionLibrary = document.getElementById('interactionLibrary');
+      const durationSelect = document.getElementById('durationSelect');
+      const themeSelect = document.getElementById('themeSelect');
+      const simulateBtn = document.getElementById('simulateBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const evaluationPanel = document.getElementById('evaluationPanel');
+      const evaluationContent = document.getElementById('evaluationContent');
+
+      // 渲染环节
+      function renderPhases() {
+        phaseContainer.innerHTML = phases.map(p => `
+          <div class="timeline-block p-3 ${currentPhaseId === p.id ? 'active' : ''}" data-phase-id="${p.id}">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid ${p.icon}" style="color:${p.color};"></i>
+              <span class="font-medium text-gray-700">${p.name}</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">约 ${Math.round(p.timeRatio * durationMinutes)} 分钟</p>
+          </div>
+        `).join('');
+        document.querySelectorAll('#phaseContainer .timeline-block').forEach(el => {
+          el.addEventListener('click', () => {
+            currentPhaseId = el.dataset.phaseId;
+            renderPhases();
+          });
+        });
+      }
+
+      // 渲染话题库
+      function renderTopicLibrary(filter = 'all') {
+        const filtered = filter === 'all' ? currentTopics : currentTopics.filter(t => t.category === filter);
+        topicLibrary.innerHTML = filtered.map(t => `
+          <div class="interaction-card flex flex-col gap-1" data-topic-id="${t.id}">
+            <div class="flex justify-between items-start">
+              <span class="text-sm font-medium text-gray-700">${t.name}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full ${t.risk > 2 ? 'badge-risk' : 'badge-safe'}">${t.category}</span>
+            </div>
+            <p class="text-[10px] text-gray-400">${t.desc}</p>
+            ${t.policyNote ? `<p class="text-[10px] text-amber-600"><i class="fa-solid fa-triangle-exclamation"></i> ${t.policyNote}</p>` : ''}
+          </div>
+        `).join('');
+        document.querySelectorAll('#topicLibrary .interaction-card').forEach(el => {
+          el.addEventListener('click', () => addToPlan('topic', el.dataset.topicId));
+        });
+      }
+
+      // 渲染互动库
+      function renderInteractionLibrary() {
+        interactionLibrary.innerHTML = currentInteractions.map(inter => {
+          const usedCount = planItems.filter(p => p.itemId === inter.id && p.type === 'interaction').length;
+          const isMaxed = usedCount >= inter.limit;
+          return `
+            <div class="interaction-card flex flex-col gap-1 ${isMaxed ? 'used' : ''}" data-interaction-id="${inter.id}">
+              <div class="flex justify-between items-start">
+                <span class="text-sm font-medium text-gray-700"><i class="fa-solid ${inter.icon} mr-1 text-indigo-400"></i>${inter.name}</span>
+                <span class="text-[10px] text-gray-400">${usedCount}/${inter.limit}</span>
+              </div>
+              <div class="flex gap-2 text-[10px] text-gray-500">
+                <span>人气+${inter.attraction}</span>
+                <span>转化${inter.conversion>0?'+'+inter.conversion:inter.conversion}</span>
+                ${inter.risk>0?`<span class="text-red-500">风险+${inter.risk}</span>`:''}
+              </div>
+            </div>
+          `;
+        }).join('');
+        document.querySelectorAll('#interactionLibrary .interaction-card').forEach(el => {
+          el.addEventListener('click', () => {
+            if (el.classList.contains('used')) return;
+            addToPlan('interaction', el.dataset.interactionId);
+          });
+        });
+      }
+
+      // 添加至方案
+      function addToPlan(type, itemId) {
+        if (!currentPhaseId) {
+          alert('请先在左侧选择一个直播环节！');
+          return;
+        }
+        const phaseItems = planItems.filter(p => p.phaseId === currentPhaseId);
+        if (phaseItems.length >= 5) {
+          alert('每个环节最多添加5项内容，避免节奏拖沓。');
+          return;
+        }
+        planItems.push({ phaseId: currentPhaseId, type, itemId, time: Date.now() });
+        renderPlanList();
+        renderInteractionLibrary();
+      }
+
+      // 渲染方案列表
+      function renderPlanList() {
+        if (planItems.length === 0) {
+          planList.innerHTML = '<p class="text-gray-400 text-sm text-center py-6">尚未添加互动或话题，<br>请先选择左侧环节，再点击右侧内容。</p>';
+          planCount.textContent = '0 项';
+          return;
+        }
+        planCount.textContent = planItems.length + ' 项';
+        let html = '';
+        planItems.forEach((item, index) => {
+          const phase = phases.find(p => p.id === item.phaseId);
+          let content = '';
+          if (item.type === 'topic') {
+            const t = currentTopics.find(tp => tp.id === item.itemId);
+            content = t ? `<span class="text-indigo-700">📌 ${t.name}</span> <span class="text-xs text-gray-400">[${t.category}]</span>` : '未知话题';
+          } else {
+            const inter = currentInteractions.find(i => i.id === item.itemId);
+            content = inter ? `<span class="text-purple-700">🎯 ${inter.name}</span>` : '未知互动';
+          }
+          html += `
+            <div class="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+              <div class="flex items-center gap-2 text-sm">
+                <span class="text-xs font-mono bg-gray-200 px-2 py-0.5 rounded">${phase?.name}</span>
+                ${content}
+              </div>
+              <button class="text-red-400 hover:text-red-600 text-xs" data-remove-index="${index}"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          `;
+        });
+        planList.innerHTML = html;
+        document.querySelectorAll('[data-remove-index]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            planItems.splice(parseInt(btn.dataset.removeIndex), 1);
+            renderPlanList();
+            renderInteractionLibrary();
+          });
+        });
+      }
+
+      // 生成文字评价
+      function generateEvaluation() {
+        if (planItems.length === 0) {
+          evaluationContent.innerHTML = '<p class="text-red-500">⚠️ 当前方案为空，请添加至少一项话题或互动。</p>';
+          return;
+        }
+        const phaseCount = {};
+        phases.forEach(p => phaseCount[p.id] = 0);
+        planItems.forEach(item => phaseCount[item.phaseId] = (phaseCount[item.phaseId] || 0) + 1);
+
+        let popularity = 50, conversion = 0, risk = 0;
+        const comments = [];
+        const expected = { opening: [1,2], trust: [1,3], product: [2,4], interact: [1,3], promo: [1,2], ending: [0,1] };
+
+        // 节奏评价
+        for (let [phaseId, cnt] of Object.entries(phaseCount)) {
+          const exp = expected[phaseId];
+          if (exp) {
+            if (cnt < exp[0]) comments.push(`环节“${phases.find(p=>p.id===phaseId)?.name}”内容偏少，可适当补充。`);
+            else if (cnt > exp[1]) comments.push(`环节“${phases.find(p=>p.id===phaseId)?.name}”内容过多，可能显得冗长。`);
+          }
+        }
+
+        // 逐项统计
+        planItems.forEach(item => {
+          if (item.type === 'topic') {
+            const t = currentTopics.find(tp => tp.id === item.itemId);
+            if (t) {
+              popularity += t.attraction * 2;
+              conversion += t.conversion;
+              risk += t.risk;
+              if (t.risk >= 3) comments.push(`话题“${t.name}”存在较高违规风险 (${t.policyNote || '敏感内容'})，建议替换或调整措辞。`);
+            }
+          } else {
+            const inter = currentInteractions.find(i => i.id === item.itemId);
+            if (inter) {
+              popularity += inter.attraction * 2;
+              conversion += inter.conversion;
+              risk += inter.risk;
+              const pid = item.phaseId;
+              if (inter.id === 'i4' && pid !== 'promo') comments.push(`“限时秒杀”更适合在促销秒杀环节使用，当前效果可能打折扣。`);
+              if (inter.id === 'i1' && pid === 'opening' && currentTheme === 'farm') comments.push(`“试吃盲盒”建议在信任建设或互动环节推出，开场可能稍显突兀。`);
+            }
+          }
+        });
+
+        let summary = '';
+        if (popularity > 80) summary = '方案整体人气设计优秀，能有效吸引观众停留。';
+        else if (popularity < 60) summary = '人气互动略显不足，可增加抽奖、红包等玩法提升氛围。';
+        else summary = '人气表现中等，可适当增加高频互动。';
+
+        if (conversion > 20) summary += ' 转化推动力强劲，产品种草和促销安排合理。';
+        else if (conversion < 10) summary += ' 转化环节薄弱，建议加强限时秒杀或优惠券发放。';
+
+        if (risk > 6) summary += ' 但整体风险较高，需谨慎处理政策敏感话题。';
+
+        evaluationContent.innerHTML = `
+          <p><strong>📊 数据预估：</strong>人气 ${popularity} | 转化 +${conversion} | 风险 ${risk}</p>
+          <p><strong>💬 总评：</strong>${summary}</p>
+          ${comments.length ? '<p><strong>📌 优化建议：</strong></p>' + comments.map(c => `<p>• ${c}</p>`).join('') : '<p>✅ 方案无明显问题，节奏合理。</p>'}
+        `;
+        evaluationPanel.classList.remove('hidden');
+        evaluationPanel.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      // 切换主题
+      function switchTheme(theme) {
+        currentTheme = theme;
+        currentTopics = [...themeData[theme].topics];
+        currentInteractions = [...themeData[theme].interactions];
+        planItems = []; // 清空方案
+        renderTopicLibrary();
+        renderInteractionLibrary();
+        renderPlanList();
+        evaluationPanel.classList.add('hidden');
+      }
+
+      // 重置
+      function resetAll() {
+        planItems = [];
+        currentPhaseId = 'opening';
+        renderPhases();
+        renderPlanList();
+        renderTopicLibrary();
+        renderInteractionLibrary();
+        evaluationPanel.classList.add('hidden');
+        durationMinutes = parseInt(durationSelect.value);
+      }
+
+      // 事件绑定
+      themeSelect.addEventListener('change', (e) => switchTheme(e.target.value));
+      durationSelect.addEventListener('change', () => {
+        durationMinutes = parseInt(durationSelect.value);
+        renderPhases();
+      });
+      simulateBtn.addEventListener('click', generateEvaluation);
+      resetBtn.addEventListener('click', resetAll);
+
+      // 话题筛选
+      document.querySelectorAll('[data-filter]').forEach(tag => {
+        tag.addEventListener('click', (e) => {
+          document.querySelectorAll('[data-filter]').forEach(t => t.classList.remove('selected'));
+          e.target.classList.add('selected');
+          renderTopicLibrary(e.target.dataset.filter);
+        });
+      });
+
+      // 初始化
+      function init() {
+        currentTheme = themeSelect.value;
+        switchTheme(currentTheme);
+        currentPhaseId = 'opening';
+        durationMinutes = parseInt(durationSelect.value);
+        renderPhases();
+      }
+      init();
+    })();
+  </script>
+</body>
+</html>

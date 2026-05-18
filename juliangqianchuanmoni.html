@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+  <title>巨量千川 · 全域推广实训</title>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js">
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body {
+      background: #f5f6f8;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      padding: 1.2rem;
+    }
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 1.5rem;
+    }
+    .step-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      transition: 0.2s;
+      flex-shrink: 0;
+    }
+    .step-circle.active {
+      background: #1677ff;
+      color: white;
+    }
+    .step-circle.done {
+      background: #10b981;
+      color: white;
+    }
+    .step-circle.pending {
+      background: #e5e7eb;
+      color: #9ca3af;
+    }
+    .step-line {
+      flex: 1;
+      height: 3px;
+      background: #e5e7eb;
+      min-width: 20px;
+      transition: 0.3s;
+    }
+    .step-line.done {
+      background: #10b981;
+    }
+    .btn-primary {
+      background: #1677ff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.6rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-primary:hover {
+      background: #0958d9;
+    }
+    .btn-primary:disabled {
+      background: #b0c4e0;
+      cursor: not-allowed;
+    }
+    .btn-outline {
+      background: white;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 0.55rem 1.4rem;
+      font-weight: 500;
+      cursor: pointer;
+      color: #374151;
+    }
+    .btn-outline:hover {
+      background: #f9fafb;
+    }
+    .product-tag {
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 0.6rem 0.8rem;
+      cursor: pointer;
+      transition: 0.15s;
+      user-select: none;
+    }
+    .product-tag:hover {
+      border-color: #93c5fd;
+    }
+    .product-tag.selected {
+      border-color: #1677ff;
+      background: #eff6ff;
+    }
+    .material-card {
+      border: 1px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 0.7rem;
+      cursor: pointer;
+      transition: 0.15s;
+      text-align: center;
+      font-size: 0.8rem;
+    }
+    .material-card:hover {
+      border-color: #1677ff;
+      background: #f8faff;
+    }
+    .material-card.selected {
+      border-style: solid;
+      border-color: #1677ff;
+      background: #eff6ff;
+    }
+    .alert-tip {
+      background: #fffbe6;
+      border-left: 4px solid #faad14;
+      border-radius: 0 8px 8px 0;
+      padding: 0.6rem 1rem;
+      font-size: 0.8rem;
+    }
+    .alert-info {
+      background: #e6f4ff;
+      border-left: 4px solid #1677ff;
+      border-radius: 0 8px 8px 0;
+      padding: 0.6rem 1rem;
+      font-size: 0.8rem;
+    }
+    .alert-danger {
+      background: #fff2f0;
+      border-left: 4px solid #ff4d4f;
+      border-radius: 0 8px 8px 0;
+      padding: 0.6rem 1rem;
+      font-size: 0.8rem;
+    }
+    .metric-card {
+      background: #fafbfc;
+      border-radius: 10px;
+      padding: 0.8rem;
+      text-align: center;
+    }
+    .progress-bar {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1677ff, #3b82f6);
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    .roi-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 3px;
+      outline: none;
+    }
+    .roi-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      background: #1677ff;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+    .flow-source-bar {
+      display: flex;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      gap: 2px;
+    }
+    .flow-source-segment {
+      height: 100%;
+      border-radius: 2px;
+    }
+    @keyframes pulse {
+      0%,
+      100% {
+        opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+    }
+    .pulsing {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-5 max-w-7xl mx-auto">
+
+  <!-- ========== 顶部账户栏 ========== -->
+  <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+        <i class="fa-solid fa-rocket text-blue-500"></i> 巨量千川 · 全域推广
+      </h1>
+      <p class="text-sm text-gray-500">推广模式：推商品（全域） | 以商品整体支付ROI为优化目标</p>
+    </div>
+    <div class="flex gap-3 items-center flex-wrap">
+      <div class="bg-white rounded-full px-4 py-2 shadow-sm border flex items-center gap-2">
+        <span class="text-sm text-gray-500">账户ID</span>
+        <span class="font-medium text-gray-700">238761234</span>
+      </div>
+      <div class="bg-white rounded-full px-4 py-2 shadow-sm border flex items-center gap-2">
+        <span class="text-sm text-gray-500">💰 余额</span>
+        <span class="font-bold text-lg text-blue-600" id="balanceDisplay">50,000</span>
+      </div>
+      <div class="bg-white rounded-full px-4 py-2 shadow-sm border flex items-center gap-2">
+        <span class="text-sm text-gray-500">今日消耗</span>
+        <span class="font-bold text-gray-700" id="todayCost">¥0</span>
+      </div>
+      <button id="resetAllBtn" class="btn-outline text-sm"><i class="fa-solid fa-arrow-rotate-left"></i> 重置</button>
+    </div>
+  </div>
+
+  <!-- ========== 步骤指示器 ========== -->
+  <div class="card mb-4">
+    <div class="step-indicator">
+      <div class="step-circle active" id="stepCircle1">1</div>
+      <div class="step-line" id="stepLine1"></div>
+      <div class="step-circle pending" id="stepCircle2">2</div>
+      <div class="step-line" id="stepLine2"></div>
+      <div class="step-circle pending" id="stepCircle3">3</div>
+      <div class="step-line" id="stepLine3"></div>
+      <div class="step-circle pending" id="stepCircle4">4</div>
+    </div>
+    <div class="flex justify-between text-xs text-gray-500 px-1">
+      <span>推广设置</span><span>ROI目标</span><span>素材配置</span><span>提交确认</span>
+    </div>
+  </div>
+
+  <!-- ========== 主布局 ========== -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+    <!-- 左侧：步骤表单 -->
+    <div class="lg:col-span-2">
+      <div class="card" id="formCard">
+        <!-- Step 1: 推广设置 -->
+        <div id="step1Content">
+          <h3 class="font-semibold text-gray-700 mb-3 text-lg flex items-center gap-2">
+            <span class="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm">1</span> 推广设置
+          </h3>
+          <div class="space-y-4">
+            <div>
+              <label class="text-sm font-medium text-gray-600">选择抖音号</label>
+              <select id="douyinAccount" class="w-full border rounded-lg px-3 py-2 mt-1 outline-none focus:border-blue-500">
+                <option value="dy001">@美妆小仙女（粉丝 12.8万）</option>
+                <option value="dy002">@数码测评老王（粉丝 8.5万）</option>
+                <option value="dy003">@品质生活家（粉丝 6.2万）</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">选择推广商品 <span class="text-gray-400">(可多选，系统智能调配流量)</span></label>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1" id="productSelector">
+                <div class="product-tag selected" data-product="p1" data-price="199" data-cost="100">
+                  <p class="font-medium text-sm">🎧 智能无线耳机</p><p class="text-xs text-gray-400">售价¥199 | 成本¥100</p>
+                </div>
+                <div class="product-tag" data-product="p2" data-price="259" data-cost="130">
+                  <p class="font-medium text-sm">📸 复古拍立得</p><p class="text-xs text-gray-400">售价¥259 | 成本¥130</p>
+                </div>
+                <div class="product-tag" data-product="p3" data-price="149" data-cost="75">
+                  <p class="font-medium text-sm">🏕️ 折叠露营椅</p><p class="text-xs text-gray-400">售价¥149 | 成本¥75</p>
+                </div>
+                <div class="product-tag" data-product="p4" data-price="79" data-cost="35">
+                  <p class="font-medium text-sm">🌬️ 便携挂脖风扇</p><p class="text-xs text-gray-400">售价¥79 | 成本¥35</p>
+                </div>
+                <div class="product-tag" data-product="p5" data-price="129" data-cost="60">
+                  <p class="font-medium text-sm">⚖️ 智能体脂秤</p><p class="text-xs text-gray-400">售价¥129 | 成本¥60</p>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-sm font-medium text-gray-600">投放预算 (¥)</label>
+                <input type="number" id="budgetInput" value="3000" min="300" max="50000" class="w-full border rounded-lg px-3 py-2 mt-1 outline-none focus:border-blue-500">
+                <p class="text-xs text-gray-400 mt-1">建议范围：¥300 ~ ¥50,000</p>
+              </div>
+              <div>
+                <label class="text-sm font-medium text-gray-600">投放时长</label>
+                <select id="durationSelect" class="w-full border rounded-lg px-3 py-2 mt-1 outline-none focus:border-blue-500">
+                  <option value="1">1天</option>
+                  <option value="3" selected>3天</option>
+                  <option value="7">7天</option>
+                  <option value="30">30天</option>
+                </select>
+              </div>
+            </div>
+            <button id="toStep2Btn" class="btn-primary">下一步 → ROI目标</button>
+          </div>
+        </div>
+
+        <!-- Step 2: ROI目标 -->
+        <div id="step2Content" class="hidden">
+          <h3 class="font-semibold text-gray-700 mb-3 text-lg flex items-center gap-2">
+            <span class="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm">2</span> 设置ROI目标
+          </h3>
+          <div class="space-y-4">
+            <div class="alert-info">
+              <p class="font-medium">💡 系统建议ROI：<span id="suggestedROI" class="text-blue-600 font-bold">2.0 ~ 3.0</span></p>
+              <p class="text-xs text-gray-500 mt-1">基于所选商品利润率综合计算，建议采纳系统推荐值以保障跑量。</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">净成交ROI目标</label>
+              <div class="flex items-center gap-3 mt-1">
+                <input type="range" id="roiSlider" class="roi-slider flex-1" min="1.0" max="5.0" step="0.1" value="2.5">
+                <span class="text-2xl font-bold text-blue-600 w-16 text-right" id="roiValue">2.5</span>
+              </div>
+              <div class="flex justify-between text-xs text-gray-400 mt-1">
+                <span>1.0 (易跑量)</span><span>5.0 (难跑量)</span>
+              </div>
+            </div>
+            <div id="roiWarning" class="alert-tip hidden"></div>
+            <div class="flex gap-2">
+              <button id="backStep1Btn" class="btn-outline">← 上一步</button>
+              <button id="toStep3Btn" class="btn-primary">下一步 → 素材配置</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: 素材配置 -->
+        <div id="step3Content" class="hidden">
+          <h3 class="font-semibold text-gray-700 mb-3 text-lg flex items-center gap-2">
+            <span class="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm">3</span> 素材配置
+          </h3>
+          <div class="space-y-4">
+            <div>
+              <label class="text-sm font-medium text-gray-600">视频素材 <span class="text-gray-400">(建议≥5条，越多探索越充分)</span></label>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1" id="videoMaterials">
+                <div class="material-card" data-material="v1">🎬 产品展示A</div>
+                <div class="material-card" data-material="v2">🎬 使用场景B</div>
+                <div class="material-card" data-material="v3">🎬 用户证言C</div>
+                <div class="material-card" data-material="v4">🎬 开箱测评D</div>
+                <div class="material-card" data-material="v5">🎬 对比测试E</div>
+                <div class="material-card" data-material="v6">🎬 达人种草F</div>
+                <div class="material-card" data-material="v7">🎬 工厂实拍G</div>
+                <div class="material-card" data-material="v8">🎬 教程演示H</div>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-600">图片素材 <span class="text-gray-400">(用于商城等场景)</span></label>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1" id="imageMaterials">
+                <div class="material-card" data-material="i1">🖼️ 主图1</div>
+                <div class="material-card" data-material="i2">🖼️ 场景图2</div>
+                <div class="material-card" data-material="i3">🖼️ 细节图3</div>
+                <div class="material-card" data-material="i4">🖼️ 对比图4</div>
+              </div>
+            </div>
+            <div id="materialTip" class="alert-tip"></div>
+            <div class="flex gap-2">
+              <button id="backStep2Btn" class="btn-outline">← 上一步</button>
+              <button id="toStep4Btn" class="btn-primary">下一步 → 提交确认</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: 提交确认 -->
+        <div id="step4Content" class="hidden">
+          <h3 class="font-semibold text-gray-700 mb-3 text-lg flex items-center gap-2">
+            <span class="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm">4</span> 提交确认
+          </h3>
+          <div class="space-y-3 bg-gray-50 p-4 rounded-xl text-sm">
+            <div class="flex justify-between"><span class="text-gray-500">抖音号</span><span class="font-medium" id="confirmAccount">--</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">推广商品</span><span class="font-medium" id="confirmProducts">--</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">投放预算</span><span class="font-medium text-blue-600" id="confirmBudget">--</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">投放时长</span><span class="font-medium" id="confirmDuration">--</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">ROI目标</span><span class="font-medium text-blue-600" id="confirmROI">--</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">视频素材</span><span class="font-medium" id="confirmVideos">--</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">图片素材</span><span class="font-medium" id="confirmImages">--</span></div>
+          </div>
+          <div class="alert-info mt-3">
+            <p><i class="fa-solid fa-circle-info"></i> <strong>教学提示：</strong>全域推广提交后将进入冷启动探索期，系统自动在信息流推荐、直播广场、商城、搜索等全域流量池中探索优质流量。建议持续投放3天以上，不要频繁开关计划。</p>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button id="backStep3Btn" class="btn-outline">← 上一步</button>
+            <button id="submitPlanBtn" class="btn-primary text-lg px-6">🚀 提交全域推广计划</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 投放结果面板（提交后显示） -->
+      <div id="resultPanel" class="card mt-4 hidden">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-gray-700 text-lg flex items-center gap-2">
+            <i class="fa-solid fa-chart-line text-blue-500"></i> 模拟投放结果
+          </h3>
+          <span id="learningBadge" class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-medium pulsing">
+            🔍 冷启动学习中...
+          </span>
+        </div>
+        <!-- 消耗进度条 -->
+        <div class="mb-3">
+          <div class="flex justify-between text-xs text-gray-500 mb-1">
+            <span>消耗进度</span><span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+        </div>
+        <!-- 指标卡片 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="resultMetrics">
+          <div class="metric-card"><p class="text-xs text-gray-500">消耗</p><p class="text-lg font-bold" id="metricCost">¥0</p></div>
+          <div class="metric-card"><p class="text-xs text-gray-500">展示量</p><p class="text-lg font-bold" id="metricImpressions">0</p></div>
+          <div class="metric-card"><p class="text-xs text-gray-500">点击量</p><p class="text-lg font-bold" id="metricClicks">0</p></div>
+          <div class="metric-card"><p class="text-xs text-gray-500">成交订单</p><p class="text-lg font-bold" id="metricOrders">0</p></div>
+          <div class="metric-card"><p class="text-xs text-gray-500">GMV</p><p class="text-lg font-bold" id="metricGMV">¥0</p></div>
+          <div class="metric-card"><p class="text-xs text-gray-500">净成交ROI</p><p class="text-lg font-bold text-blue-600" id="metricROI">0.00</p></div>
+          <div class="metric-card"><p class="text-xs text-gray-500">转化成本</p><p class="text-lg font-bold" id="metricCPA">¥0</p></div>
+          <div class="metric-card"><p class="text-xs text-gray-500">点击率</p><p class="text-lg font-bold" id="metricCTR">0%</p></div>
+        </div>
+        <!-- 流量来源 -->
+        <div class="mb-3">
+          <p class="text-xs font-medium text-gray-600 mb-1">流量来源分布</p>
+          <div class="flow-source-bar" id="flowSourceBar">
+            <div class="flow-source-segment" style="width:42%;background:#1677ff;"></div>
+            <div class="flow-source-segment" style="width:18%;background:#3b82f6;"></div>
+            <div class="flow-source-segment" style="width:16%;background:#60a5fa;"></div>
+            <div class="flow-source-segment" style="width:14%;background:#93c5fd;"></div>
+            <div class="flow-source-segment" style="width:10%;background:#bfdbfe;"></div>
+          </div>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-500">
+            <span>■ 信息流推荐 42%</span><span>■ 直播广场 18%</span><span>■ 商城 16%</span><span>■ 搜索 14%</span><span>■ 其他 10%</span>
+          </div>
+        </div>
+        <!-- 素材跑量排行 -->
+        <div>
+          <p class="text-xs font-medium text-gray-600 mb-1">素材跑量TOP5</p>
+          <div id="materialRanking" class="text-xs text-gray-600 space-y-1"></div>
+        </div>
+        <!-- 评价 -->
+        <div id="resultEvaluation" class="mt-3 p-3 rounded-lg text-sm"></div>
+        <button id="retryBtn" class="btn-outline mt-3 text-sm"><i class="fa-solid fa-rotate-right"></i> 重新调整方案</button>
+      </div>
+    </div>
+
+    <!-- 右侧：智能建议面板 -->
+    <div class="lg:col-span-1 space-y-3">
+      <div class="card">
+        <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-lightbulb text-amber-400"></i> 智能预估
+        </h3>
+        <div id="smartEstimate" class="text-sm text-gray-500 space-y-2">
+          <p>请先完成左侧设置...</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-circle-check text-green-500"></i> 规则校验
+        </h3>
+        <div id="ruleCheck" class="text-sm space-y-2">
+          <p class="text-gray-400">等待配置...</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+          <i class="fa-regular fa-file-lines text-blue-500"></i> 全域推广要点
+        </h3>
+        <ul class="text-xs text-gray-500 space-y-1.5 list-disc pl-4">
+          <li>以<strong>商品整体支付ROI</strong>为优化目标</li>
+          <li>不区分自然与付费流量，系统全域探索</li>
+          <li>一个抖音号仅可创建一个全域计划</li>
+          <li>建议持续投放<strong>3天以上</strong>，避免频繁开关</li>
+          <li>素材越多，系统探索越充分</li>
+          <li>冷启动期ROI波动较大，属正常现象</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // ========== 状态管理 ==========
+      let currentStep = 1;
+      let selectedProducts = ['p1'];
+      let selectedVideos = [];
+      let selectedImages = [];
+      let balance = 50000;
+      let totalCostToday = 0;
+      let simulationInterval = null;
+      let simElapsed = 0;
+      const SIM_TOTAL_SEC = 8; // 模拟总时长（真实秒数）
+
+      // ========== DOM引用 ==========
+      const stepCircles = [document.getElementById('stepCircle1'), document.getElementById('stepCircle2'),
+        document.getElementById('stepCircle3'), document.getElementById('stepCircle4')
+      ];
+      const stepLines = [document.getElementById('stepLine1'), document.getElementById('stepLine2'), document
+        .getElementById('stepLine3')
+      ];
+      const stepContents = [document.getElementById('step1Content'), document.getElementById('step2Content'), document
+        .getElementById('step3Content'), document.getElementById('step4Content')
+      ];
+
+      // 按钮
+      const toStep2Btn = document.getElementById('toStep2Btn');
+      const toStep3Btn = document.getElementById('toStep3Btn');
+      const toStep4Btn = document.getElementById('toStep4Btn');
+      const backStep1Btn = document.getElementById('backStep1Btn');
+      const backStep2Btn = document.getElementById('backStep2Btn');
+      const backStep3Btn = document.getElementById('backStep3Btn');
+      const submitPlanBtn = document.getElementById('submitPlanBtn');
+      const retryBtn = document.getElementById('retryBtn');
+      const resetAllBtn = document.getElementById('resetAllBtn');
+
+      const resultPanel = document.getElementById('resultPanel');
+      const roiSlider = document.getElementById('roiSlider');
+      const roiValueEl = document.getElementById('roiValue');
+      const roiWarning = document.getElementById('roiWarning');
+      const suggestedROIEl = document.getElementById('suggestedROI');
+      const materialTip = document.getElementById('materialTip');
+      const smartEstimate = document.getElementById('smartEstimate');
+      const ruleCheck = document.getElementById('ruleCheck');
+      const balanceDisplay = document.getElementById('balanceDisplay');
+      const todayCostEl = document.getElementById('todayCost');
+      const learningBadge = document.getElementById('learningBadge');
+
+      // ========== 商品数据 ==========
+      const productData = {
+        'p1': { name: '智能无线耳机', emoji: '🎧', price: 199, cost: 100 },
+        'p2': { name: '复古拍立得', emoji: '📸', price: 259, cost: 130 },
+        'p3': { name: '折叠露营椅', emoji: '🏕️', price: 149, cost: 75 },
+        'p4': { name: '便携挂脖风扇', emoji: '🌬️', price: 79, cost: 35 },
+        'p5': { name: '智能体脂秤', emoji: '⚖️', price: 129, cost: 60 },
+      };
+
+      // ========== 步骤切换 ==========
+      function goToStep(step) {
+        currentStep = step;
+        stepContents.forEach((el, i) => el.classList.toggle('hidden', i !== step - 1));
+        stepCircles.forEach((el, i) => {
+          el.classList.remove('active', 'done', 'pending');
+          if (i < step - 1) el.classList.add('done');
+          else if (i === step - 1) el.classList.add('active');
+          else el.classList.add('pending');
+        });
+        stepLines.forEach((el, i) => {
+          el.classList.toggle('done', i < step - 1);
+        });
+        updateRightPanel();
+      }
+
+      // ========== 商品选择 ==========
+      document.getElementById('productSelector').addEventListener('click', (e) => {
+        const tag = e.target.closest('.product-tag');
+        if (!tag) return;
+        const pid = tag.dataset.product;
+        if (selectedProducts.includes(pid)) {
+          if (selectedProducts.length > 1) selectedProducts = selectedProducts.filter(p => p !== pid);
+        } else {
+          selectedProducts.push(pid);
+        }
+        document.querySelectorAll('.product-tag').forEach(t => {
+          t.classList.toggle('selected', selectedProducts.includes(t.dataset.product));
+        });
+        updateRightPanel();
+      });
+
+      // ========== 素材选择 ==========
+      document.getElementById('videoMaterials').addEventListener('click', (e) => {
+        const card = e.target.closest('.material-card');
+        if (!card) return;
+        const mid = card.dataset.material;
+        if (selectedVideos.includes(mid)) selectedVideos = selectedVideos.filter(v => v !== mid);
+        else selectedVideos.push(mid);
+        card.classList.toggle('selected', selectedVideos.includes(mid));
+        updateRightPanel();
+      });
+      document.getElementById('imageMaterials').addEventListener('click', (e) => {
+        const card = e.target.closest('.material-card');
+        if (!card) return;
+        const mid = card.dataset.material;
+        if (selectedImages.includes(mid)) selectedImages = selectedImages.filter(v => v !== mid);
+        else selectedImages.push(mid);
+        card.classList.toggle('selected', selectedImages.includes(mid));
+        updateRightPanel();
+      });
+
+      // ========== ROI滑块 ==========
+      roiSlider.addEventListener('input', () => {
+        roiValueEl.textContent = parseFloat(roiSlider.value).toFixed(1);
+        checkROI();
+        updateRightPanel();
+      });
+
+      function checkROI() {
+        const roi = parseFloat(roiSlider.value);
+        const range = getSuggestedROIRange();
+        if (roi < range.min) {
+          roiWarning.classList.remove('hidden');
+          roiWarning.innerHTML =
+            '⚠️ ROI目标过低（低于建议值），虽然更容易跑量，但可能导致实际ROI偏低，利润空间被压缩。';
+          roiWarning.className = 'alert-tip';
+        } else if (roi > range.max) {
+          roiWarning.classList.remove('hidden');
+          roiWarning.innerHTML = '⚠️ ROI目标过高（高于建议值），系统可能难以找到足够转化用户，导致计划跑不动。';
+          roiWarning.className = 'alert-danger';
+        } else {
+          roiWarning.classList.add('hidden');
+        }
+      }
+
+      function getSuggestedROIRange() {
+        let totalPrice = 0,
+          totalCost = 0;
+        selectedProducts.forEach(pid => {
+          const p = productData[pid];
+          if (p) { totalPrice += p.price;
+            totalCost += p.cost; }
+        });
+        if (totalCost === 0) return { min: 2.0, max: 3.0 };
+        const profitMargin = (totalPrice - totalCost) / totalPrice;
+        const baseROI = totalPrice / totalCost;
+        const minROI = Math.max(1.2, (baseROI * 0.7));
+        const maxROI = Math.min(5.0, (baseROI * 1.3));
+        return { min: parseFloat(minROI.toFixed(1)), max: parseFloat(maxROI.toFixed(1)) };
+      }
+
+      function updateSuggestedROI() {
+        const range = getSuggestedROIRange();
+        suggestedROIEl.textContent = `${range.min} ~ ${range.max}`;
+        roiSlider.min = Math.max(0.8, range.min - 0.8).toFixed(1);
+        roiSlider.max = Math.min(5.5, range.max + 1.0).toFixed(1);
+        if (parseFloat(roiSlider.value) < range.min || parseFloat(roiSlider.value) > range.max) {
+          roiSlider.value = ((range.min + range.max) / 2).toFixed(1);
+          roiValueEl.textContent = parseFloat(roiSlider.value).toFixed(1);
+        }
+        checkROI();
+      }
+
+      // ========== 右侧面板更新 ==========
+      function updateRightPanel() {
+        const budget = parseInt(document.getElementById('budgetInput').value) || 0;
+        const roi = parseFloat(roiSlider.value);
+        const range = getSuggestedROIRange();
+        const duration = parseInt(document.getElementById('durationSelect').value);
+
+        // 智能预估
+        const estimatedImpressions = Math.floor(budget * 25 * (1 + selectedVideos.length * 0.08));
+        const estimatedClicks = Math.floor(estimatedImpressions * 0.03);
+        const estimatedConversions = Math.floor(estimatedClicks * 0.06);
+        const estimatedGMV = Math.floor(estimatedConversions * 180);
+        smartEstimate.innerHTML = `
+          <p>📊 预估展示量：<strong>${estimatedImpressions.toLocaleString()}</strong></p>
+          <p>👆 预估点击量：<strong>${estimatedClicks.toLocaleString()}</strong></p>
+          <p>📦 预估成交：<strong>${estimatedConversions} 单</strong></p>
+          <p>💰 预估GMV：<strong>¥${estimatedGMV.toLocaleString()}</strong></p>
+          <p>🎯 目标ROI：<strong class="text-blue-600">${roi.toFixed(1)}</strong></p>
+          <p class="text-xs text-gray-400">* 基于预算与素材数量预估</p>
+        `;
+
+        // 规则校验
+        let checks = '';
+        if (budget < 300) checks += '<p class="text-red-500">❌ 预算过低（<¥300），不足以支撑系统探索。</p>';
+        else if (budget > 3000 && selectedVideos.length < 3) checks +=
+          '<p class="text-amber-600">⚠️ 预算较高但素材偏少，建议增加素材。</p>';
+        else checks += '<p class="text-green-600">✅ 预算配置合理。</p>';
+
+        if (roi >= range.min && roi <= range.max) checks +=
+          '<p class="text-green-600">✅ ROI目标在建议范围内。</p>';
+        else if (roi < range.min) checks += '<p class="text-amber-600">⚠️ ROI偏低，虽易跑量但利润空间小。</p>';
+        else checks += '<p class="text-amber-600">⚠️ ROI偏高，可能跑量困难。</p>';
+
+        if (selectedVideos.length >= 5) checks += '<p class="text-green-600">✅ 视频素材充足（≥5条）。</p>';
+        else if (selectedVideos.length >= 3) checks +=
+          `<p class="text-amber-600">⚠️ 视频素材偏少（${selectedVideos.length}条），建议≥5条。</p>`;
+        else checks += '<p class="text-red-500">❌ 视频素材严重不足，请至少选择3条。</p>';
+
+        if (selectedProducts.length >= 2) checks += '<p class="text-green-600">✅ 多品投放，系统可智能调配流量。</p>';
+        else checks += '<p class="text-amber-600">⚠️ 仅投放1个商品，建议多品以分散风险。</p>';
+
+        ruleCheck.innerHTML = checks;
+
+        // 素材提示
+        if (currentStep === 3) {
+          if (selectedVideos.length < 5) {
+            materialTip.classList.remove('hidden');
+            materialTip.innerHTML =
+              `⚠️ 当前仅选择 <strong>${selectedVideos.length}</strong> 条视频素材，建议至少准备 <strong>5条以上</strong>，素材越多系统探索越充分，冷启动越快。`;
+            materialTip.className = 'alert-tip';
+          } else {
+            materialTip.classList.remove('hidden');
+            materialTip.innerHTML = '✅ 视频素材数量达标，有利于系统充分探索优质流量。';
+            materialTip.className = 'alert-info';
+          }
+        }
+      }
+
+      // ========== 步骤按钮事件 ==========
+      toStep2Btn.addEventListener('click', () => {
+        updateSuggestedROI();
+        goToStep(2);
+      });
+      toStep3Btn.addEventListener('click', () => { materialTip.classList.add('hidden');
+        goToStep(3);
+        updateRightPanel(); });
+      toStep4Btn.addEventListener('click', () => {
+        updateConfirmPage();
+        goToStep(4);
+      });
+      backStep1Btn.addEventListener('click', () => goToStep(1));
+      backStep2Btn.addEventListener('click', () => goToStep(2));
+      backStep3Btn.addEventListener('click', () => goToStep(3));
+
+      function updateConfirmPage() {
+        const account = document.getElementById('douyinAccount').value;
+        document.getElementById('confirmAccount').textContent =
+          document.getElementById('douyinAccount').selectedOptions[0]?.text || '--';
+        document.getElementById('confirmProducts').textContent = selectedProducts.map(p => productData[p]?.name || p)
+          .join('、');
+        document.getElementById('confirmBudget').textContent = '¥' + (parseInt(document.getElementById('budgetInput')
+          .value) || 0).toLocaleString();
+        document.getElementById('confirmDuration').textContent = document.getElementById('durationSelect')
+        .selectedOptions[0]?.text || '--';
+        document.getElementById('confirmROI').textContent = parseFloat(roiSlider.value).toFixed(1);
+        document.getElementById('confirmVideos').textContent = selectedVideos.length + ' 条';
+        document.getElementById('confirmImages').textContent = selectedImages.length + ' 条';
+      }
+
+      // ========== 提交计划 & 模拟投放 ==========
+      submitPlanBtn.addEventListener('click', () => {
+        const budget = parseInt(document.getElementById('budgetInput').value) || 0;
+        if (budget > balance) { alert('余额不足！请调整预算。'); return; }
+        if (selectedVideos.length < 2) { alert('请至少选择2条视频素材。'); return; }
+        if (selectedProducts.length === 0) { alert('请至少选择1个商品。'); return; }
+
+        // 扣减余额
+        balance -= budget;
+        totalCostToday += budget;
+        updateBalanceDisplay();
+
+        // 隐藏表单，显示结果
+        document.getElementById('formCard').classList.add('hidden');
+        resultPanel.classList.remove('hidden');
+        learningBadge.textContent = '🔍 冷启动学习中...';
+        learningBadge.className = 'bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-medium pulsing';
+
+        // 开始模拟
+        startSimulation(budget);
+        retryBtn.classList.add('hidden');
+      });
+
+      function startSimulation(budget) {
+        if (simulationInterval) clearInterval(simulationInterval);
+        simElapsed = 0;
+        const roi = parseFloat(roiSlider.value);
+        const videoCount = selectedVideos.length;
+        const roiInRange = roi >= getSuggestedROIRange().min && roi <= getSuggestedROIRange().max;
+
+        // 模拟参数
+        const totalImpressions = Math.floor(budget * 22 * (1 + videoCount * 0.1));
+        const ctrBase = 0.025 + videoCount * 0.003;
+        const totalClicks = Math.floor(totalImpressions * ctrBase);
+        const cvrBase = roiInRange ? 0.06 : (roi < getSuggestedROIRange().min ? 0.07 : 0.04);
+        const totalOrders = Math.floor(totalClicks * cvrBase);
+        const avgPrice = selectedProducts.reduce((sum, pid) => sum + (productData[pid]?.price || 150), 0) / selectedProducts
+          .length;
+        const totalGMV = Math.floor(totalOrders * avgPrice * (0.85 + Math.random() * 0.3));
+        const actualROI = totalGMV / budget;
+
+        const stepCost = budget / SIM_TOTAL_SEC;
+        const stepImpressions = totalImpressions / SIM_TOTAL_SEC;
+        const stepClicks = totalClicks / SIM_TOTAL_SEC;
+        const stepOrders = totalOrders / SIM_TOTAL_SEC;
+        const stepGMV = totalGMV / SIM_TOTAL_SEC;
+
+        let accumulatedCost = 0,
+          accumulatedImp = 0,
+          accumulatedClicks = 0,
+          accumulatedOrders = 0,
+          accumulatedGMV = 0;
+
+        simulationInterval = setInterval(() => {
+          simElapsed++;
+          const progress = simElapsed / SIM_TOTAL_SEC;
+
+          // 模拟非均匀消耗（前期慢，中期快，后期稳）
+          const speedFactor = progress < 0.3 ? 0.6 : (progress < 0.7 ? 1.3 : 0.9);
+          accumulatedCost += stepCost * speedFactor;
+          accumulatedImp += stepImpressions * speedFactor;
+          accumulatedClicks += stepClicks * speedFactor;
+          accumulatedOrders += stepOrders * speedFactor;
+          accumulatedGMV += stepGMV * speedFactor;
+
+          const currentROI = accumulatedCost > 0 ? accumulatedGMV / accumulatedCost : 0;
+          const currentCTR = accumulatedImp > 0 ? (accumulatedClicks / accumulatedImp * 100) : 0;
+          const currentCPA = accumulatedOrders > 0 ? accumulatedCost / accumulatedOrders : 0;
+
+          document.getElementById('progressPercent').textContent = Math.round(progress * 100) + '%';
+          document.getElementById('progressFill').style.width = Math.round(progress * 100) + '%';
+          document.getElementById('metricCost').textContent = '¥' + Math.floor(accumulatedCost).toLocaleString();
+          document.getElementById('metricImpressions').textContent = Math.floor(accumulatedImp).toLocaleString();
+          document.getElementById('metricClicks').textContent = Math.floor(accumulatedClicks).toLocaleString();
+          document.getElementById('metricOrders').textContent = Math.floor(accumulatedOrders);
+          document.getElementById('metricGMV').textContent = '¥' + Math.floor(accumulatedGMV).toLocaleString();
+          document.getElementById('metricROI').textContent = currentROI.toFixed(2);
+          document.getElementById('metricCPA').textContent = '¥' + Math.floor(currentCPA).toLocaleString();
+          document.getElementById('metricCTR').textContent = currentCTR.toFixed(2) + '%';
+
+          // 冷启动标签
+          if (progress < 0.4) {
+            learningBadge.textContent = '🔍 冷启动学习中...';
+            learningBadge.className =
+              'bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-medium pulsing';
+          } else if (progress < 0.75) {
+            learningBadge.textContent = '📈 稳定放量中';
+            learningBadge.className =
+              'bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium';
+          } else {
+            learningBadge.textContent = '✅ 投放趋于稳定';
+            learningBadge.className =
+              'bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium';
+          }
+
+          if (simElapsed >= SIM_TOTAL_SEC) {
+            clearInterval(simulationInterval);
+            simulationInterval = null;
+            learningBadge.textContent = '✅ 投放完成';
+            learningBadge.className =
+              'bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium';
+            document.getElementById('progressFill').style.width = '100%';
+            document.getElementById('progressPercent').textContent = '100%';
+
+            // 最终ROI
+            const finalROI = accumulatedGMV / accumulatedCost;
+            document.getElementById('metricROI').textContent = finalROI.toFixed(2);
+
+            // 素材跑量排行
+            const videoNames = ['产品展示A', '使用场景B', '用户证言C', '开箱测评D', '对比测试E', '达人种草F', '工厂实拍G',
+              '教程演示H'
+            ];
+            const selectedNames = selectedVideos.map(v => {
+              const idx = parseInt(v.replace('v', '')) - 1;
+              return videoNames[idx] || v;
+            });
+            const shuffled = [...selectedNames].sort(() => Math.random() - 0.5);
+            const ranking = shuffled.slice(0, Math.min(5, shuffled.length));
+            document.getElementById('materialRanking').innerHTML = ranking.map((n, i) =>
+              `<p>${i+1}. ${n} — 消耗 ¥${Math.floor(Math.random()*accumulatedCost*0.4+accumulatedCost*0.1).toLocaleString()}</p>`
+            ).join('');
+
+            // 评价
+            showEvaluation(finalROI, accumulatedCost, accumulatedOrders, selectedVideos.length);
+            retryBtn.classList.remove('hidden');
+          }
+        }, 400);
+      }
+
+      function showEvaluation(finalROI, cost, orders, videoCount) {
+        const range = getSuggestedROIRange();
+        let evaluationHTML = '';
+        if (finalROI >= range.min && finalROI <= range.max) {
+          evaluationHTML =
+            '<div class="alert-info"><strong>✅ 优秀方案！</strong>ROI在建议范围内，计划顺利起量并稳定投放。全域推广充分发挥了系统自动探索的优势，商品整体GMV表现良好。建议持续投放3天以上以积累更多数据。</div>';
+        } else if (finalROI < range.min) {
+          evaluationHTML =
+            '<div class="alert-tip"><strong>⚠️ ROI偏低。</strong>虽然跑量顺利，但ROI未达建议值，利润空间被压缩。建议：①适当提高ROI目标；②优化素材质量提升转化率；③检查商品定价策略。</div>';
+        } else {
+          evaluationHTML =
+            '<div class="alert-danger"><strong>⚠️ ROI偏高导致跑量困难。</strong>ROI目标设置过高，系统难以找到足够转化用户，消耗和订单均低于预期。建议：①降低ROI目标至建议区间；②增加素材数量以拓宽探索范围。</div>';
+        }
+        if (videoCount < 5) {
+          evaluationHTML +=
+            '<p class="mt-2 text-amber-600">💡 补充建议：素材数量不足（<5条）限制了系统探索能力，下次建议准备更多样化的素材。</p>';
+        }
+        document.getElementById('resultEvaluation').innerHTML = evaluationHTML;
+      }
+
+      function updateBalanceDisplay() {
+        balanceDisplay.textContent = balance.toLocaleString();
+        todayCostEl.textContent = '¥' + totalCostToday.toLocaleString();
+      }
+
+      // ========== 重试 & 重置 ==========
+      retryBtn.addEventListener('click', () => {
+        if (simulationInterval) clearInterval(simulationInterval);
+        simulationInterval = null;
+        document.getElementById('formCard').classList.remove('hidden');
+        resultPanel.classList.add('hidden');
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('progressPercent').textContent = '0%';
+        goToStep(1);
+      });
+
+      resetAllBtn.addEventListener('click', () => {
+        if (simulationInterval) clearInterval(simulationInterval);
+        simulationInterval = null;
+        balance = 50000;
+        totalCostToday = 0;
+        updateBalanceDisplay();
+        selectedProducts = ['p1'];
+        selectedVideos = [];
+        selectedImages = [];
+        document.querySelectorAll('.product-tag').forEach(t => t.classList.toggle('selected', t.dataset.product ===
+          'p1'));
+        document.querySelectorAll('.material-card').forEach(c => c.classList.remove('selected'));
+        document.getElementById('budgetInput').value = 3000;
+        document.getElementById('durationSelect').value = '3';
+        document.getElementById('douyinAccount').value = 'dy001';
+        roiSlider.value = 2.5;
+        roiValueEl.textContent = '2.5';
+        roiWarning.classList.add('hidden');
+        materialTip.classList.add('hidden');
+        document.getElementById('formCard').classList.remove('hidden');
+        resultPanel.classList.add('hidden');
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('progressPercent').textContent = '0%';
+        updateSuggestedROI();
+        goToStep(1);
+      });
+
+      // ========== 预算输入监听 ==========
+      document.getElementById('budgetInput').addEventListener('input', updateRightPanel);
+      document.getElementById('durationSelect').addEventListener('change', updateRightPanel);
+      document.getElementById('douyinAccount').addEventListener('change', updateRightPanel);
+
+      // ========== 初始化 ==========
+      function init() {
+        updateSuggestedROI();
+        goToStep(1);
+        updateRightPanel();
+        updateBalanceDisplay();
+      }
+      init();
+    })();
+  </script>
+</body>
+</html>

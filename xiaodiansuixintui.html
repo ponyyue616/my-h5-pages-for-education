@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>小店随心推 · 全域投放模拟实训（含人群定向）</title>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body {
+      background: #f0f2f5;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .phone-frame {
+      width: 100%;
+      max-width: 420px;
+      background: #ffffff;
+      border-radius: 2rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+    }
+    .phone-header {
+      background: #1677ff;
+      color: white;
+      padding: 0.8rem 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+    .phone-content {
+      max-height: 750px;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .card-option {
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 0.7rem 0.9rem;
+      cursor: pointer;
+      transition: 0.15s;
+      background: #fafbfc;
+      user-select: none;
+    }
+    .card-option:hover { border-color: #93c5fd; }
+    .card-option.selected { border-color: #1677ff; background: #eff6ff; }
+    .btn-primary {
+      background: #1677ff;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 0.8rem;
+      font-weight: 700;
+      font-size: 1rem;
+      width: 100%;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-primary:hover { background: #0958d9; }
+    .btn-primary:disabled { background: #b0c4e0; cursor: not-allowed; }
+    .tag-blue { background: #e6f4ff; color: #1677ff; padding: 0.15rem 0.6rem; border-radius: 1rem; font-size: 0.65rem; font-weight: 600; }
+    .tag-green { background: #f0fdf4; color: #15803d; padding: 0.15rem 0.6rem; border-radius: 1rem; font-size: 0.65rem; font-weight: 600; }
+    .tag-amber { background: #fffbe6; color: #b45309; padding: 0.15rem 0.6rem; border-radius: 1rem; font-size: 0.65rem; font-weight: 600; }
+    .roi-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 3px;
+      outline: none;
+    }
+    .roi-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 26px;
+      height: 26px;
+      background: #1677ff;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .progress-thin { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
+    .progress-thin-fill { height: 100%; background: linear-gradient(90deg, #1677ff, #3b82f6); border-radius: 3px; transition: width 0.3s; }
+    .metric-mini { background: #f9fafb; border-radius: 10px; padding: 0.6rem; text-align: center; }
+    .alert-box { border-radius: 10px; padding: 0.7rem 1rem; font-size: 0.78rem; line-height: 1.5; }
+    .alert-info { background: #e6f4ff; border-left: 4px solid #1677ff; }
+    .alert-warning { background: #fffbe6; border-left: 4px solid #faad14; }
+    .alert-success { background: #f0fdf4; border-left: 4px solid #10b981; }
+    .alert-danger { background: #fff2f0; border-left: 4px solid #ff4d4f; }
+    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .tab-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.6rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: 0.15s;
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+    .tab-btn.active { background: #1677ff; color: white; }
+    .audience-tag {
+      border: 1px solid #d1d5db;
+      border-radius: 20px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      background: #f9fafb;
+      transition: 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .audience-tag.active { border-color: #1677ff; background: #eff6ff; color: #1677ff; }
+  </style>
+</head>
+<body>
+  <div class="phone-frame">
+    <div class="phone-header">
+      <span><i class="fa-solid fa-arrow-left mr-2"></i>小店随心推</span>
+      <span class="text-xs opacity-80">账户余额 ¥<span id="balanceDisplay">10,000</span></span>
+    </div>
+    <div class="phone-content" id="mainContent">
+      <!-- 投放目标切换 -->
+      <div class="flex gap-2 mb-4">
+        <div class="tab-btn active" id="tabLive"><i class="fa-solid fa-video mr-1"></i>推直播</div>
+        <div class="tab-btn" id="tabProduct"><i class="fa-solid fa-box mr-1"></i>推商品</div>
+      </div>
+
+      <!-- 直播间名称 / 商品标题 -->
+      <div class="section-title" id="titleLabel">
+        <i class="fa-solid fa-pen-to-square text-blue-500"></i> 直播间名称
+      </div>
+      <div class="mb-4">
+        <input type="text" id="titleInput" placeholder="例如：夏季美妆专场直播" maxlength="30"
+        class="w-full border rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-blue-500 bg-gray-50">
+        <p class="text-xs text-gray-400 mt-1">为自己创建的直播间或商品取一个吸引人的标题吧~</p>
+      </div>
+
+      <!-- 套餐选择 -->
+      <div class="section-title"><i class="fa-solid fa-calendar-check text-blue-500"></i> 选择套餐</div>
+      <div class="grid grid-cols-2 gap-2 mb-4" id="packageSelector">
+        <div class="card-option selected" data-package="1day"><p class="font-semibold text-sm">📦 1日套餐</p><p class="text-xs text-gray-400">单日快速投放</p></div>
+        <div class="card-option" data-package="3day"><p class="font-semibold text-sm">📦 3日套餐</p><p class="text-xs text-gray-400">系统跨日调控</p></div>
+        <div class="card-option" data-package="5day"><p class="font-semibold text-sm">📦 5日套餐</p><p class="text-xs text-gray-400">成本保障覆盖</p></div>
+        <div class="card-option" data-package="7day"><p class="font-semibold text-sm">📦 7日套餐</p><p class="text-xs text-gray-400">长周期稳定投放</p></div>
+      </div>
+
+      <!-- 预算设置 -->
+      <div class="section-title"><i class="fa-solid fa-coins text-blue-500"></i> 投放预算</div>
+      <div class="flex items-center gap-3 mb-4">
+        <input type="number" id="budgetInput" value="500" min="100" max="50000" class="flex-1 border rounded-xl px-4 py-2.5 text-lg font-bold outline-none focus:border-blue-500 text-center">
+        <span class="text-sm text-gray-500">元</span>
+      </div>
+      <div class="flex gap-2 mb-4">
+        <span class="tag-blue cursor-pointer" data-quick-budget="300">¥300</span>
+        <span class="tag-blue cursor-pointer" data-quick-budget="500">¥500</span>
+        <span class="tag-blue cursor-pointer" data-quick-budget="1000">¥1000</span>
+        <span class="tag-blue cursor-pointer" data-quick-budget="3000">¥3000</span>
+      </div>
+
+      <!-- ROI目标设置 -->
+      <div class="section-title"><i class="fa-solid fa-bullseye text-blue-500"></i> 净成交ROI目标</div>
+      <div class="alert-info alert-box mb-3">
+        <p class="text-xs">💡 系统预估ROI：<strong class="text-blue-600" id="suggestedROI">2.0 ~ 3.2</strong>（基于商品利润率推算）</p>
+      </div>
+      <div class="flex items-center gap-3 mb-1">
+        <input type="range" id="roiSlider" class="roi-slider flex-1" min="1.0" max="5.0" step="0.1" value="2.5">
+        <span class="text-xl font-bold text-blue-600 w-12 text-right" id="roiValue">2.5</span>
+      </div>
+      <div class="flex justify-between text-xs text-gray-400 mb-3">
+        <span>1.0 (易跑量)</span><span>5.0 (难跑量)</span>
+      </div>
+      <div id="roiWarning" class="hidden"></div>
+
+      <!-- 成本保障提示 -->
+      <div class="alert-success alert-box mb-4" id="costGuarantee" style="display:flex; align-items:flex-start; gap:0.5rem;">
+        <i class="fa-solid fa-shield-halved text-green-600 mt-0.5"></i>
+        <div>
+          <p class="font-semibold text-sm">🛡️ 成本保障</p>
+          <p class="text-xs text-gray-500">3/5日套餐纳入成本保障，若系统预估ROI不达标可获差额补偿。</p>
+        </div>
+      </div>
+
+      <!-- 素材选择（推商品时显示） -->
+      <div id="materialSection" class="hidden mb-4">
+        <div class="section-title"><i class="fa-solid fa-photo-film text-blue-500"></i> 投放素材 <span class="text-xs text-gray-400 font-normal">(多选，系统智能优选)</span></div>
+        <div class="grid grid-cols-2 gap-2" id="materialGrid">
+          <div class="card-option" data-material="m1">🎬 产品展示A</div>
+          <div class="card-option" data-material="m2">🎬 使用场景B</div>
+          <div class="card-option" data-material="m3">🎬 用户证言C</div>
+          <div class="card-option" data-material="m4">🎬 开箱测评D</div>
+          <div class="card-option" data-material="m5">🎬 对比测试E</div>
+          <div class="card-option" data-material="m6">🎬 达人种草F</div>
+        </div>
+        <p class="text-xs text-gray-400 mt-1" id="materialCount">已选 0 条素材</p>
+      </div>
+
+      <!-- 投放人群 -->
+      <div class="section-title mt-4"><i class="fa-solid fa-users text-blue-500"></i> 投放人群 <span class="text-xs text-gray-400 font-normal">(实际随心推由系统自动探索)</span></div>
+      <div class="space-y-4 mb-4" id="audienceSection">
+        <div>
+          <p class="text-xs font-medium text-gray-600 mb-2">📍 限运地区</p>
+          <div class="flex flex-wrap gap-2" id="regionTags">
+            <span class="audience-tag active" data-region="all">不限地区</span>
+            <span class="audience-tag" data-region="exclude_remote">偏远地区除外</span>
+            <span class="audience-tag" data-region="east">华东地区</span>
+            <span class="audience-tag" data-region="south">华南地区</span>
+            <span class="audience-tag" data-region="north">华北地区</span>
+          </div>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-600 mb-2">🚻 性别</p>
+          <div class="flex gap-2" id="genderTags">
+            <span class="audience-tag active" data-gender="all">不限</span>
+            <span class="audience-tag" data-gender="female">女性</span>
+            <span class="audience-tag" data-gender="male">男性</span>
+          </div>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-600 mb-2">📅 年龄</p>
+          <div class="flex flex-wrap gap-2" id="ageTags">
+            <span class="audience-tag active" data-age="all">不限</span>
+            <span class="audience-tag" data-age="18-24">18-24岁</span>
+            <span class="audience-tag" data-age="25-35">25-35岁</span>
+            <span class="audience-tag" data-age="36-50">36-50岁</span>
+            <span class="audience-tag" data-age="50+">50岁以上</span>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400">定向越精准，曝光量可能减少但转化率提升；系统全域推广会在此基础上自动拓展相似人群。</p>
+      </div>
+
+      <!-- 提交按钮 -->
+      <button id="submitBtn" class="btn-primary mb-4">🚀 开启全域投放</button>
+
+      <!-- 投放结果面板 -->
+      <div id="resultPanel" class="hidden">
+        <div class="bg-gray-50 rounded-2xl p-4 mb-4">
+          <div class="mb-3">
+            <p class="text-xs text-gray-400">投放项目</p>
+            <p class="font-semibold text-gray-800 text-lg" id="resultTitle">--</p>
+          </div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-700"><i class="fa-solid fa-chart-line text-blue-500 mr-1"></i>投放中</h3>
+            <span id="statusBadge" class="tag-amber"><span class="pulse-dot mr-1"></span>冷启动探索中</span>
+          </div>
+          <div class="mb-3">
+            <div class="flex justify-between text-xs text-gray-500 mb-1"><span>消耗进度</span><span id="progressPercent">0%</span></div>
+            <div class="progress-thin"><div class="progress-thin-fill" id="progressFill" style="width:0%;"></div></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mb-3" id="metricsGrid">
+            <div class="metric-mini"><p class="text-xs text-gray-400">消耗</p><p class="text-sm font-bold" id="mCost">¥0</p></div>
+            <div class="metric-mini"><p class="text-xs text-gray-400">展示量</p><p class="text-sm font-bold" id="mImp">0</p></div>
+            <div class="metric-mini"><p class="text-xs text-gray-400">点击量</p><p class="text-sm font-bold" id="mClick">0</p></div>
+            <div class="metric-mini"><p class="text-xs text-gray-400">净成交ROI</p><p class="text-sm font-bold text-blue-600" id="mROI">0.00</p></div>
+            <div class="metric-mini"><p class="text-xs text-gray-400">成交订单</p><p class="text-sm font-bold" id="mOrders">0</p></div>
+            <div class="metric-mini"><p class="text-xs text-gray-400">GMV</p><p class="text-sm font-bold" id="mGMV">¥0</p></div>
+          </div>
+          <div class="mb-3">
+            <p class="text-xs font-medium text-gray-600 mb-1">流量来源</p>
+            <div class="flex h-2 rounded-full overflow-hidden gap-0.5">
+              <div style="width:40%;background:#1677ff;"></div>
+              <div style="width:22%;background:#3b82f6;"></div>
+              <div style="width:18%;background:#60a5fa;"></div>
+              <div style="width:20%;background:#93c5fd;"></div>
+            </div>
+            <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
+              <span>■ 信息流 40%</span><span>■ 直播广场 22%</span><span>■ 商城 18%</span><span>■ 搜索 20%</span>
+            </div>
+          </div>
+          <div id="evaluationBox" class="text-sm"></div>
+        </div>
+        <button id="retryBtn" class="btn-primary bg-gray-700 hover:bg-gray-800 mt-2">🔄 重新调整方案</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // 状态管理
+      let targetType = 'live';
+      let selectedPackage = '1day';
+      let balance = 10000;
+      let selectedMaterials = [];
+      let simTimer = null;
+      const SIM_DURATION = 6;
+      let projectTitle = ''; // 直播间名称或商品标题
+
+      // 人群定向状态
+      let audience = {
+        region: 'all',
+        gender: 'all',
+        ages: ['all']
+      };
+
+      // 商品数据
+      const productList = [
+        { name: '智能无线耳机', price: 199, cost: 100 },
+        { name: '复古拍立得', price: 259, cost: 130 },
+        { name: '折叠露营椅', price: 149, cost: 75 },
+        { name: '便携挂脖风扇', price: 79, cost: 35 },
+      ];
+
+      // DOM
+      const tabLive = document.getElementById('tabLive');
+      const tabProduct = document.getElementById('tabProduct');
+      const titleLabel = document.getElementById('titleLabel');
+      const titleInput = document.getElementById('titleInput');
+      const roiSlider = document.getElementById('roiSlider');
+      const roiValueEl = document.getElementById('roiValue');
+      const suggestedROIEl = document.getElementById('suggestedROI');
+      const roiWarning = document.getElementById('roiWarning');
+      const costGuarantee = document.getElementById('costGuarantee');
+      const materialSection = document.getElementById('materialSection');
+      const materialCount = document.getElementById('materialCount');
+      const budgetInput = document.getElementById('budgetInput');
+      const balanceDisplay = document.getElementById('balanceDisplay');
+      const submitBtn = document.getElementById('submitBtn');
+      const resultPanel = document.getElementById('resultPanel');
+      const resultTitle = document.getElementById('resultTitle');
+      const retryBtn = document.getElementById('retryBtn');
+
+      // 目标切换
+      tabLive.addEventListener('click', () => switchTarget('live'));
+      tabProduct.addEventListener('click', () => switchTarget('product'));
+      function switchTarget(type) {
+        targetType = type;
+        tabLive.classList.toggle('active', type === 'live');
+        tabProduct.classList.toggle('active', type === 'product');
+        materialSection.classList.toggle('hidden', type !== 'product');
+        // 更新标题标签和占位符
+        if (type === 'live') {
+          titleLabel.innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-500"></i> 直播间名称';
+          titleInput.placeholder = '例如：夏季美妆专场直播';
+        } else {
+          titleLabel.innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-500"></i> 商品标题';
+          titleInput.placeholder = '例如：新款智能无线耳机首发';
+        }
+        updateROISuggestion();
+      }
+
+      // 套餐选择
+      document.getElementById('packageSelector').addEventListener('click', (e) => {
+        const card = e.target.closest('.card-option');
+        if (!card) return;
+        document.querySelectorAll('#packageSelector .card-option').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedPackage = card.dataset.package;
+        updateCostGuarantee();
+      });
+
+      function updateCostGuarantee() {
+        costGuarantee.style.display = ['3day', '5day'].includes(selectedPackage) ? 'flex' : 'none';
+      }
+
+      // 素材选择
+      document.getElementById('materialGrid').addEventListener('click', (e) => {
+        const card = e.target.closest('.card-option');
+        if (!card) return;
+        const mid = card.dataset.material;
+        if (selectedMaterials.includes(mid)) {
+          selectedMaterials = selectedMaterials.filter(m => m !== mid);
+          card.classList.remove('selected');
+        } else {
+          selectedMaterials.push(mid);
+          card.classList.add('selected');
+        }
+        materialCount.textContent = `已选 ${selectedMaterials.length} 条素材`;
+      });
+
+      // 快速预算
+      document.querySelectorAll('[data-quick-budget]').forEach(tag => {
+        tag.addEventListener('click', () => {
+          budgetInput.value = tag.dataset.quickBudget;
+          updateROISuggestion();
+        });
+      });
+
+      // ROI
+      roiSlider.addEventListener('input', () => {
+        roiValueEl.textContent = parseFloat(roiSlider.value).toFixed(1);
+        checkROIWarning();
+      });
+
+      function getSuggestedROIRange() {
+        let totalPrice = 0,
+          totalCost = 0;
+        productList.forEach(p => { totalPrice += p.price;
+          totalCost += p.cost; });
+        const baseROI = totalPrice / totalCost;
+        return {
+          min: parseFloat((baseROI * 0.75).toFixed(1)),
+          max: parseFloat((baseROI * 1.25).toFixed(1)),
+        };
+      }
+
+      function updateROISuggestion() {
+        const range = getSuggestedROIRange();
+        suggestedROIEl.textContent = `${range.min} ~ ${range.max}`;
+        roiSlider.min = Math.max(0.8, range.min - 0.8).toFixed(1);
+        roiSlider.max = Math.min(5.5, range.max + 1.2).toFixed(1);
+        if (parseFloat(roiSlider.value) < range.min || parseFloat(roiSlider.value) > range.max) {
+          roiSlider.value = ((range.min + range.max) / 2).toFixed(1);
+          roiValueEl.textContent = parseFloat(roiSlider.value).toFixed(1);
+        }
+        checkROIWarning();
+      }
+
+      function checkROIWarning() {
+        const roi = parseFloat(roiSlider.value);
+        const range = getSuggestedROIRange();
+        if (roi < range.min) {
+          roiWarning.classList.remove('hidden');
+          roiWarning.className = 'alert-warning alert-box';
+          roiWarning.innerHTML = '⚠️ ROI目标偏低，虽易跑量但利润空间小。';
+        } else if (roi > range.max) {
+          roiWarning.classList.remove('hidden');
+          roiWarning.className = 'alert-danger alert-box';
+          roiWarning.innerHTML = '⚠️ ROI目标偏高，可能跑量困难。';
+        } else {
+          roiWarning.classList.add('hidden');
+        }
+      }
+
+      // 人群定向交互
+      document.getElementById('regionTags').addEventListener('click', (e) => {
+        const tag = e.target.closest('.audience-tag');
+        if (!tag) return;
+        document.querySelectorAll('#regionTags .audience-tag').forEach(t => t.classList.remove('active'));
+        tag.classList.add('active');
+        audience.region = tag.dataset.region;
+      });
+
+      document.getElementById('genderTags').addEventListener('click', (e) => {
+        const tag = e.target.closest('.audience-tag');
+        if (!tag) return;
+        document.querySelectorAll('#genderTags .audience-tag').forEach(t => t.classList.remove('active'));
+        tag.classList.add('active');
+        audience.gender = tag.dataset.gender;
+      });
+
+      document.getElementById('ageTags').addEventListener('click', (e) => {
+        const tag = e.target.closest('.audience-tag');
+        if (!tag) return;
+        const age = tag.dataset.age;
+        if (age === 'all') {
+          document.querySelectorAll('#ageTags .audience-tag').forEach(t => t.classList.remove('active'));
+          tag.classList.add('active');
+          audience.ages = ['all'];
+        } else {
+          const allTag = document.querySelector('#ageTags .audience-tag[data-age="all"]');
+          allTag.classList.remove('active');
+          audience.ages = audience.ages.filter(a => a !== 'all');
+          if (tag.classList.contains('active')) {
+            tag.classList.remove('active');
+            audience.ages = audience.ages.filter(a => a !== age);
+          } else {
+            tag.classList.add('active');
+            audience.ages.push(age);
+          }
+          if (audience.ages.length === 0) {
+            allTag.classList.add('active');
+            audience.ages = ['all'];
+          }
+        }
+      });
+
+      function getAudiencePrecision() {
+        let precision = 0;
+        if (audience.region !== 'all') precision += 0.3;
+        if (audience.gender !== 'all') precision += 0.3;
+        if (!audience.ages.includes('all')) precision += 0.4;
+        return Math.min(1, precision);
+      }
+
+      // 提交投放
+      submitBtn.addEventListener('click', () => {
+        const budget = parseInt(budgetInput.value) || 0;
+        if (budget < 100) { alert('预算最低100元'); return; }
+        if (budget > balance) { alert('账户余额不足！'); return; }
+        if (targetType === 'product' && selectedMaterials.length < 2) {
+          alert('推商品模式请至少选择2条素材'); return;
+        }
+        // 读取标题
+        projectTitle = titleInput.value.trim();
+        if (!projectTitle) {
+          const defaultTitle = targetType === 'live' ? '未命名直播间' : '未命名商品';
+          projectTitle = defaultTitle;
+        }
+
+        balance -= budget;
+        updateBalanceDisplay();
+        document.querySelectorAll('#mainContent > :not(#resultPanel)').forEach(el => {
+          if (el.id !== 'resultPanel') el.style.display = 'none';
+        });
+        resultPanel.classList.remove('hidden');
+        submitBtn.style.display = 'none';
+        resultTitle.textContent = (targetType === 'live' ? '📺 ' : '📦 ') + projectTitle;
+        document.getElementById('statusBadge').className = 'tag-amber';
+        document.getElementById('statusBadge').innerHTML = '<span class="pulse-dot mr-1"></span>冷启动探索中';
+        startSimulation(budget);
+      });
+
+      function startSimulation(budget) {
+        if (simTimer) clearInterval(simTimer);
+        simTimer = null;
+        let simProgress = 0;
+        const roi = parseFloat(roiSlider.value);
+        const range = getSuggestedROIRange();
+        const roiInRange = roi >= range.min && roi <= range.max;
+        const materialCountVal = targetType === 'product' ? Math.max(selectedMaterials.length, 2) : 3;
+        const precision = getAudiencePrecision();
+
+        const impFactor = 1 - precision * 0.3;
+        const cvrBoost = 1 + precision * 0.4;
+
+        const totalImp = Math.floor(budget * 30 * (1 + materialCountVal * 0.12) * impFactor);
+        const totalClick = Math.floor(totalImp * 0.028);
+        const baseCVR = roiInRange ? 0.065 : (roi < range.min ? 0.075 : 0.04);
+        const adjustedCVR = baseCVR * cvrBoost;
+        const totalOrders = Math.floor(totalClick * adjustedCVR);
+        const avgPrice = productList.reduce((s, p) => s + p.price, 0) / productList.length;
+        const totalGMV = Math.floor(totalOrders * avgPrice * (0.82 + Math.random() * 0.36));
+        const finalROI = totalGMV / budget;
+
+        const stepCost = budget / SIM_DURATION;
+        const stepImp = totalImp / SIM_DURATION;
+        const stepClick = totalClick / SIM_DURATION;
+        const stepOrders = totalOrders / SIM_DURATION;
+        const stepGMV = totalGMV / SIM_DURATION;
+
+        let accCost = 0,
+          accImp = 0,
+          accClick = 0,
+          accOrders = 0,
+          accGMV = 0;
+
+        simTimer = setInterval(() => {
+          simProgress++;
+          const pct = simProgress / SIM_DURATION;
+          const speed = pct < 0.3 ? 0.7 : (pct < 0.7 ? 1.2 : 1.0);
+          accCost += stepCost * speed;
+          accImp += stepImp * speed;
+          accClick += stepClick * speed;
+          accOrders += stepOrders * speed;
+          accGMV += stepGMV * speed;
+
+          document.getElementById('progressPercent').textContent = Math.round(pct * 100) + '%';
+          document.getElementById('progressFill').style.width = Math.round(pct * 100) + '%';
+          document.getElementById('mCost').textContent = '¥' + Math.floor(accCost).toLocaleString();
+          document.getElementById('mImp').textContent = Math.floor(accImp).toLocaleString();
+          document.getElementById('mClick').textContent = Math.floor(accClick).toLocaleString();
+          document.getElementById('mOrders').textContent = Math.floor(accOrders);
+          document.getElementById('mGMV').textContent = '¥' + Math.floor(accGMV).toLocaleString();
+          const currentROI = accCost > 0 ? accGMV / accCost : 0;
+          document.getElementById('mROI').textContent = currentROI.toFixed(2);
+
+          if (pct < 0.35) {
+            document.getElementById('statusBadge').className = 'tag-amber';
+            document.getElementById('statusBadge').innerHTML = '<span class="pulse-dot mr-1"></span>冷启动探索中';
+          } else if (pct < 0.75) {
+            document.getElementById('statusBadge').className = 'tag-blue';
+            document.getElementById('statusBadge').innerHTML = '📈 稳定放量中';
+          } else {
+            document.getElementById('statusBadge').className = 'tag-green';
+            document.getElementById('statusBadge').innerHTML = '✅ 投放趋于稳定';
+          }
+
+          if (simProgress >= SIM_DURATION) {
+            clearInterval(simTimer);
+            document.getElementById('progressFill').style.width = '100%';
+            document.getElementById('progressPercent').textContent = '100%';
+            document.getElementById('statusBadge').className = 'tag-green';
+            document.getElementById('statusBadge').innerHTML = '✅ 投放完成';
+            document.getElementById('mROI').textContent = finalROI.toFixed(2);
+            showEvaluation(finalROI, range, materialCountVal, budget, precision);
+          }
+        }, 500);
+      }
+
+      function showEvaluation(finalROI, range, materialCountVal, budget, precision) {
+        const evalBox = document.getElementById('evaluationBox');
+        let msg = '';
+        if (finalROI >= range.min && finalROI <= range.max) {
+          msg = `<div class="alert-success alert-box"><strong>✅ 优秀方案！</strong>"${projectTitle}"的ROI在建议区间内，计划起量顺利。</div>`;
+        } else if (finalROI < range.min) {
+          msg =
+            `<div class="alert-warning alert-box"><strong>⚠️ ROI偏低。</strong>"${projectTitle}"跑量顺利但ROI未达建议值。建议提高ROI目标或优化人群。</div>`;
+        } else {
+          msg =
+            `<div class="alert-danger alert-box"><strong>⚠️ ROI偏高导致跑量困难。</strong>"${projectTitle}"建议降低ROI目标。</div>`;
+        }
+        if (precision > 0.7) {
+          msg += '<p class="text-xs text-blue-600 mt-2">🎯 精准定向使转化率提升，但曝光量受限；可考虑适当放宽人群以扩大规模。</p>';
+        } else if (precision < 0.3) {
+          msg += '<p class="text-xs text-blue-600 mt-2">📢 宽泛定向带来更大曝光量，但转化率偏低；可尝试缩小人群范围提升效率。</p>';
+        }
+        if (targetType === 'product' && materialCountVal < 3) msg +=
+          '<p class="text-xs text-amber-600 mt-1">💡 素材不足限制探索。</p>';
+        if (['3day', '5day'].includes(selectedPackage) && finalROI < range.min) msg +=
+          '<p class="text-xs text-green-600 mt-1">🛡️ 成本保障可获补偿。</p>';
+        evalBox.innerHTML = msg;
+      }
+
+      function updateBalanceDisplay() {
+        balanceDisplay.textContent = balance.toLocaleString();
+      }
+
+      retryBtn.addEventListener('click', () => {
+        if (simTimer) clearInterval(simTimer);
+        document.querySelectorAll('#mainContent > :not(#resultPanel)').forEach(el => el.style.display = '');
+        resultPanel.classList.add('hidden');
+        submitBtn.style.display = 'block';
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('progressPercent').textContent = '0%';
+        // 重置人群选项
+        document.querySelectorAll('#regionTags .audience-tag').forEach(t => t.classList.remove('active'));
+        document.querySelector('#regionTags .audience-tag[data-region="all"]').classList.add('active');
+        document.querySelectorAll('#genderTags .audience-tag').forEach(t => t.classList.remove('active'));
+        document.querySelector('#genderTags .audience-tag[data-gender="all"]').classList.add('active');
+        document.querySelectorAll('#ageTags .audience-tag').forEach(t => t.classList.remove('active'));
+        document.querySelector('#ageTags .audience-tag[data-age="all"]').classList.add('active');
+        audience = { region: 'all', gender: 'all', ages: ['all'] };
+      });
+
+      budgetInput.addEventListener('input', updateROISuggestion);
+
+      function init() {
+        updateROISuggestion();
+        updateCostGuarantee();
+        updateBalanceDisplay();
+        materialSection.classList.add('hidden');
+        titleLabel.innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-500"></i> 直播间名称';
+        titleInput.placeholder = '例如：夏季美妆专场直播';
+      }
+      init();
+    })();
+  </script>
+</body>
+</html>
